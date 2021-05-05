@@ -80,6 +80,9 @@ pyc
 pytest
 pytest's
 pytestconfig
+pythonpath
+pyzmq
+qux
 rc
 repo
 ret

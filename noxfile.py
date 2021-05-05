@@ -96,7 +96,17 @@ def tests(session):
         session.install("wheel", silent=PIP_INSTALL_SILENT)
         session.install(COVERAGE_VERSION_REQUIREMENT, silent=PIP_INSTALL_SILENT)
         if session.python is not False and system_install is False:
-            session.install(SALT_REQUIREMENT, silent=PIP_INSTALL_SILENT)
+            session.install(
+                SALT_REQUIREMENT,
+                silent=PIP_INSTALL_SILENT,
+                # Use salt's pinned requirements
+                env={"USE_STATIC_REQUIREMENTS": "1"},
+            )
+        pytest_version_requirement = os.environ.get("PYTEST_VERSION_REQUIREMENT") or None
+        if pytest_version_requirement:
+            if not pytest_version_requirement.startswith("pytest"):
+                pytest_version_requirement = "pytest{}".format(pytest_version_requirement)
+            session.install(pytest_version_requirement, silent=PIP_INSTALL_SILENT)
         session.install("-e", ".", silent=PIP_INSTALL_SILENT)
         pip_list = session_run_always(
             session, "pip", "list", "--format=json", silent=True, log=False, stderr=None
