@@ -44,13 +44,14 @@ class SaltMixin:
     """
     Base factory for salt cli's and daemon's.
 
-    :param dict config:
-        The Salt config dictionary
-    :param str python_executable:
-        The path to the python executable to use
-    :param bool system_install:
-        If true, the daemons and CLI's are run against a system installed salt setup, ie, the default
-        salt system paths apply.
+    Keyword Arguments:
+         config:
+            The Salt config dictionary
+         python_executable:
+            The path to the python executable to use
+         system_install:
+            If true, the daemons and CLI's are run against a system installed salt setup, ie, the default
+            salt system paths apply.
     """
 
     id = attr.ib(default=None, init=False)
@@ -100,12 +101,18 @@ class SaltCliImpl(SubprocessImpl):
         """
         Construct a list of arguments to use when starting the subprocess.
 
-        :param str args:
-            Additional arguments to use when starting the subprocess
-        :keyword str minion_tgt:
-            The minion ID to target
-        :keyword kwargs:
-            Additional keyword arguments will be converted into ``key=value`` pairs to be consumed by the salt CLI's
+        Arguments:
+            args:
+                Additional arguments to use when starting the subprocess
+
+        Keyword Arguments:
+            minion_tgt:
+                The minion ID to target
+            kwargs:
+                Additional keyword arguments will be converted into ``key=value`` pairs to be consumed by the salt CLI's
+
+        Returns:
+            The command line to use.
         """
         return self.factory.cmdline(*args, minion_tgt=minion_tgt, **kwargs)
 
@@ -115,8 +122,9 @@ class SaltCli(SaltMixin, ScriptSubprocess):
     """
     Base factory for salt cli's.
 
-    :param bool hard_crash:
-        Pass ``--hard-crash`` to Salt's CLI's
+    Keyword Arguments:
+        hard_crash:
+            Pass ``--hard-crash`` to Salt's CLI's
 
     Please look at :py:class:`~saltfactories.bases.Salt` and
     :py:class:`~pytestshellutils.shell.ScriptSubprocess` for the additional supported keyword
@@ -165,16 +173,22 @@ class SaltCli(SaltMixin, ScriptSubprocess):
         """
         Construct a list of arguments to use when starting the subprocess.
 
-        :param str args:
-            Additional arguments to use when starting the subprocess
-        :keyword str minion_tgt:
-            The minion ID to target
-        :keyword bool merge_json_output:
-            The default behavior of salt outputters is to print one line per minion return, which makes
-            parsing the whole output as JSON impossible when targeting multiple minions. If this value
-            is ``True``, an attempt is made to merge each JSON line into a single dictionary.
-        :keyword kwargs:
-            Additional keyword arguments will be converted into ``key=value`` pairs to be consumed by the salt CLI's
+        Arguments:
+            args:
+                Additional arguments to use when starting the subprocess
+
+        Keyword Arguments:
+            minion_tgt:
+                The minion ID to target
+            merge_json_output:
+                The default behavior of salt outputters is to print one line per minion return, which makes
+                parsing the whole output as JSON impossible when targeting multiple minions. If this value
+                is ``True``, an attempt is made to merge each JSON line into a single dictionary.
+            kwargs:
+                Additional keyword arguments will be converted into ``key=value`` pairs to be consumed by the salt CLI's
+
+        Returns:
+            The command line to use.
         """
         log.debug(
             "Building cmdline. Minion target: %s; Input args: %s; Input kwargs: %s;",
@@ -309,9 +323,8 @@ class SaltCli(SaltMixin, ScriptSubprocess):
         """
         Process the output. When possible JSON is loaded from the output.
 
-        :return:
+        Returns:
             Returns a tuple in the form of ``(stdout, stderr, loaded_json)``
-        :rtype: tuple
         """
         json_out = None
         if stdout and self.__json_output__:
@@ -367,8 +380,9 @@ class SystemdSaltDaemonImpl(DaemonImpl):
         """
         Construct a list of arguments to use when starting the subprocess.
 
-        :param str args:
-            Additional arguments to use when starting the subprocess
+        Arguments:
+            args:
+                Additional arguments to use when starting the subprocess
 
         """
         if args:  # pragma: no cover
@@ -645,9 +659,9 @@ class SaltDaemon(SaltMixin, Daemon):
         """
         Construct a list of arguments to use when starting the subprocess.
 
-        :param str args:
-            Additional arguments to use when starting the subprocess
-
+        Arguments:
+            args:
+                Additional arguments to use when starting the subprocess
         """
         _args = []
         # Handle the config directory flag

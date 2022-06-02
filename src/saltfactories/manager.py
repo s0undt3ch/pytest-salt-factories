@@ -26,7 +26,7 @@ class FactoriesManager:
     """
     Factories manager implementation.
 
-    The :class:`FactoriesManager` is responsible for configuring and spawning Salt Daemons and
+    The :py:class:`FactoriesManager` is responsible for configuring and spawning Salt Daemons and
     making sure that any salt CLI tools are "targeted" to the right daemon.
 
     It also keeps track of which daemons were started and adds their termination routines to PyTest's
@@ -34,39 +34,43 @@ class FactoriesManager:
 
     If process statistics are enabled, it also adds the started daemons to those statistics.
 
-    :keyword pathlib.Path, str root_dir:
-    :keyword int log_server_port:
-        The port the log server should listen at
-    :keyword int log_server_level:
-        The level of the log server
-    :keyword str log_server_host:
-        The hostname/ip address of the host running the logs server. Defaults to "localhost".
-    :keyword str code_dir:
-        The path to the code root directory of the project being tested. This is important for proper
-        code-coverage paths.
-    :keyword bool inject_coverage:
-        Inject code-coverage related code in the generated CLI scripts
-    :keyword bool inject_sitecustomize:
-        Inject code in the generated CLI scripts in order for our `sitecustomise.py` to be loaded by
-        subprocesses.
-    :keyword str cwd:
-        The path to the current working directory
-    :keyword dict environ:
-        A dictionary of `key`, `value` pairs to add to the environment.
-    :keyword bool slow_stop:
-        Whether to terminate the processes by sending a :py:attr:`SIGTERM` signal or by calling
-        :py:meth:`~subprocess.Popen.terminate` on the sub-process.
-        When code coverage is enabled, one will want `slow_stop` set to `True` so that coverage data
-        can be written down to disk.
-    :keyword int start_timeout:
-        The amount of time, in seconds, to wait, until a subprocess is considered as not started.
-    :type stats_processes: pytestsysstats.plugin.StatsProcesses
-    :keyword stats_processes:
-        This will be an `StatsProcesses` class instantiated on the :py:func:`~_pytest.hookspec.pytest_sessionstart`
-        hook accessible as a session scoped `stats_processes` fixture.
-    :keyword bool system_install:
-        If true, the daemons and CLI's are run against a system installed salt setup, ie, the default
-        salt system paths apply.
+    Keyword Arguments:
+        root_dir:
+            The root directory from where to base all paths. For example, in a salt system
+            installation, this would be ``/``.
+        log_server_port:
+            The port the log server should listen at
+        log_server_level:
+            The level of the log server
+        log_server_host:
+            The hostname/ip address of the host running the logs server. Defaults to "localhost".
+        code_dir:
+            The path to the code root directory of the project being tested. This is important for proper
+            code-coverage paths.
+        inject_coverage:
+            Inject code-coverage related code in the generated CLI scripts
+        inject_sitecustomize:
+            Inject code in the generated CLI scripts in order for our `sitecustomise.py` to be loaded by
+            subprocesses.
+        cwd:
+            The path to the current working directory
+        environ:
+            A dictionary of `key`, `value` pairs to add to the environment.
+        slow_stop:
+            Whether to terminate the processes by sending a :py:attr:`SIGTERM` signal or by calling
+            :py:meth:`~subprocess.Popen.terminate` on the sub-process.
+            When code coverage is enabled, one will want `slow_stop` set to `True` so that coverage data
+            can be written down to disk.
+        start_timeout:
+            The amount of time, in seconds, to wait, until a subprocess is considered as not started.
+        stats_processes: pytestsysstats.plugin.StatsProcesses
+        stats_processes:
+            This will be an :py:class:`pytestsysstats.plugin.StatsProcesses` class instantiated on the
+            :py:func:`~_pytest.hookspec.pytest_sessionstart` hook accessible as a session scoped `stats_processes`
+            fixture.
+        system_install:
+            If true, the daemons and CLI's are run against a system installed salt setup, ie, the default
+            salt system paths apply.
     """
 
     root_dir = attr.ib(converter=cast_to_pathlib_path)
@@ -203,27 +207,28 @@ class FactoriesManager:
         """
         Return a salt-master instance.
 
-        Args:
-            master_id(str):
+        Arguments:
+            master_id:
                 The master ID
-            order_masters(bool):
+
+        Keyword Arguments:
+            order_masters:
                 Boolean flag to set if this master is going to control other masters(ie, master of masters), like,
                 for example, in a :ref:`Syndic <salt:syndic>` topology scenario
-            master_of_masters(:py:class:`saltfactories.daemons.master.SaltMaster`):
+            master_of_masters:
                 A :py:class:`saltfactories.daemons.master.SaltMaster` instance, like, for example,
                 in a :ref:`Syndic <salt:syndic>` topology scenario
-            defaults(dict):
+            defaults:
                 A dictionary of default configuration to use when configuring the master
-            overrides(dict):
+            overrides:
                 A dictionary of configuration overrides to use when configuring the master
-            max_start_attempts(int):
+            max_start_attempts:
                 How many attempts should be made to start the master in case of failure to validate that its running
-            factory_class_kwargs(dict):
+            factory_class_kwargs:
                 Extra keyword arguments to pass to :py:class:`saltfactories.daemons.master.SaltMaster`
 
         Returns:
-            :py:class:`saltfactories.daemons.master.SaltMaster`:
-                The master process class instance
+            The master process class instance
         """
         root_dir = self.get_root_dir_for_daemon(
             master_id, defaults=defaults, factory_class=factory_class
@@ -265,24 +270,25 @@ class FactoriesManager:
         """
         Return a salt-minion instance.
 
-        Args:
-            minion_id(str):
+        Arguments:
+            minion_id:
                 The minion ID
-            master(:py:class:`saltfactories.daemons.master.SaltMaster`):
+
+        Keyword Arguments:
+            master:
                 An instance of :py:class:`saltfactories.daemons.master.SaltMaster` that
                 this minion will connect to.
-            defaults(dict):
+            defaults:
                 A dictionary of default configuration to use when configuring the minion
-            overrides(dict):
+            overrides:
                 A dictionary of configuration overrides to use when configuring the minion
-            max_start_attempts(int):
+            max_start_attempts:
                 How many attempts should be made to start the minion in case of failure to validate that its running
-            factory_class_kwargs(dict):
+            factory_class_kwargs:
                 Extra keyword arguments to pass to :py:class:`~saltfactories.daemons.minion.SaltMinion`
 
         Returns:
-            :py:class:`~saltfactories.daemons.minion.SaltMinion`:
-                The minion process class instance
+            The minion process class instance
         """
         root_dir = self.get_root_dir_for_daemon(
             minion_id, defaults=defaults, factory_class=factory_class
@@ -330,29 +336,30 @@ class FactoriesManager:
         """
         Return a salt-syndic instance.
 
-        Args:
-            syndic_id(str):
+        Arguments:
+            syndic_id:
                 The Syndic ID. This ID will be shared by the ``salt-master``, ``salt-minion`` and ``salt-syndic``
                 processes.
-            master_of_masters(:py:class:`saltfactories.daemons.master.SaltMaster`):
+
+        Keyword Arguments:
+            master_of_masters:
                 An instance of :py:class:`saltfactories.daemons.master.SaltMaster` that the
                 master configured in this :ref:`Syndic <salt:syndic>` topology scenario shall connect to.
-            defaults(dict):
+            defaults:
                 A dictionary of default configurations with three top level keys, ``master``, ``minion`` and
                 ``syndic``, to use when configuring the  ``salt-master``, ``salt-minion`` and ``salt-syndic``
                 respectively.
-            overrides(dict):
+            overrides:
                 A dictionary of configuration overrides with three top level keys, ``master``, ``minion`` and
                 ``syndic``, to use when configuring the  ``salt-master``, ``salt-minion`` and ``salt-syndic``
                 respectively.
-            max_start_attempts(int):
+            max_start_attempts:
                 How many attempts should be made to start the syndic in case of failure to validate that its running
-            factory_class_kwargs(dict):
+            factory_class_kwargs:
                 Extra keyword arguments to pass to :py:class:`~saltfactories.daemons.syndic.SaltSyndic`
 
         Returns:
-            :py:class:`~saltfactories.daemons.syndic.SaltSyndic`:
-                The syndic process class instance
+            The syndic process class instance
         """
         root_dir = self.get_root_dir_for_daemon(
             syndic_id, defaults=defaults, factory_class=factory_class
@@ -443,25 +450,26 @@ class FactoriesManager:
         """
         Return a salt proxy-minion instance.
 
-        Args:
-            proxy_minion_id(str):
+        Arguments:
+            proxy_minion_id:
                 The proxy minion ID
-            master(:py:class:`saltfactories.daemons.master.SaltMaster`):
+
+        Keyword Arguments:
+            master:
                 An instance of :py:class:`saltfactories.daemons.master.SaltMaster` that this minion
                 will connect to.
-            defaults(dict):
+            defaults:
                 A dictionary of default configuration to use when configuring the proxy minion
-            overrides(dict):
+            overrides:
                 A dictionary of configuration overrides to use when configuring the proxy minion
-            max_start_attempts(int):
+            max_start_attempts:
                 How many attempts should be made to start the proxy minion in case of failure to validate that
                 its running
-            factory_class_kwargs(dict):
+            factory_class_kwargs:
                 Extra keyword arguments to pass to :py:class:`~saltfactories.daemons.proxy.SaltProxyMinion`
 
         Returns:
-            :py:class:`~saltfactories.daemons.proxy.SaltProxyMinion`:
-                The proxy minion process class instance
+            The proxy minion process class instance
         """
         root_dir = self.get_root_dir_for_daemon(
             proxy_minion_id, defaults=defaults, factory_class=factory_class
@@ -500,12 +508,15 @@ class FactoriesManager:
         """
         Return a salt-api instance.
 
+        Arguments:
+            master: The :py:class:`~saltfactories.daemons.master.SaltMaster` instance to use with the launched
+            salt-api daemon.
+
         Please see py:class:`~saltfactories.manager.FactoriesManager.salt_master_daemon` for argument
         documentation.
 
         Returns:
-            :py:class:`~saltfactories.daemons.api.SaltApi`:
-                The salt-api process class instance
+            The salt-api process class instance
         """
         return self._get_factory_class_instance(
             "salt-api",
@@ -533,26 +544,25 @@ class FactoriesManager:
         """
         Return an SSHD daemon instance.
 
-        Args:
-            max_start_attempts(int):
+        Keyword Arguments:
+            max_start_attempts:
                 How many attempts should be made to start the proxy minion in case of failure to validate that
                 its running
-            config_dir(pathlib.Path):
+            config_dir:
                 The path to the sshd config directory
-            listen_address(str):
+            listen_address:
                 The address where the sshd server will listen to connections. Defaults to 127.0.0.1
-            listen_port(int):
+            listen_port:
                 The port where the sshd server will listen to connections
-            sshd_config_dict(dict):
+            sshd_config_dict:
                 A dictionary of key-value pairs to construct the sshd config file
-            script_name(str):
+            script_name:
                 The name or path to the binary to run. Defaults to ``sshd``.
-            factory_class_kwargs(dict):
+            factory_class_kwargs:
                 Extra keyword arguments to pass to :py:class:`~saltfactories.daemons.sshd.Sshd`
 
         Returns:
-            :py:class:`~saltfactories.daemons.sshd.Sshd`:
-                The sshd process class instance
+            The sshd process class instance
         """
         if config_dir is None:
             config_dir = self.get_root_dir_for_daemon("sshd", factory_class=factory_class)
@@ -590,26 +600,27 @@ class FactoriesManager:
         """
         Return a container instance.
 
-        Args:
-            container_name(str):
+        Arguments:
+            container_name:
                 The name to give the container
-            image_name(str):
+            image_name:
                 The image to use
-            display_name(str):
+
+        Keyword Arguments:
+            display_name:
                 Human readable name for the factory
             factory_class:
                 A factory class. (Default :py:class:`~saltfactories.daemons.container.Container`)
-            max_start_attempts(int):
+            max_start_attempts:
                 How many attempts should be made to start the container in case of failure to validate that
                 its running.
-            start_timeout(int):
+            start_timeout:
                 The amount of time, in seconds, to wait, until the container is considered as not started.
-            factory_class_kwargs(dict):
+            factory_class_kwargs:
                 Extra keyword arguments to pass to :py:class:`~saltfactories.daemons.container.Container`
 
         Returns:
-            :py:class:`~saltfactories.daemons.container.Container`:
-                The factory instance
+            The container factory instance
         """
         return factory_class(
             name=container_name,

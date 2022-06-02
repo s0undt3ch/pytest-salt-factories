@@ -83,12 +83,12 @@ class Container(BaseFactory):
     """
     Docker containers daemon implementation.
 
-    Args:
-        :param str image:
+    Keyword Arguments:
+        image:
             The container image to use, for example 'centos:7'
-        :param str name:
+        name:
             The name to give to the started container.
-        :keyword dict check_ports:
+        check_ports:
             This dictionary is a mapping where the keys are the container port bindings and the
             values are the host port bindings.
 
@@ -116,7 +116,7 @@ class Container(BaseFactory):
             At runtime, the :py:class:`~saltfactories.daemons.container.Container` class would query docker
             for the host port binding to the container port binding of 5000.
 
-        :keyword dict container_run_kwargs:
+        container_run_kwargs:
             This mapping will be passed directly to the python docker library:
 
             .. code-block:: python
@@ -130,17 +130,17 @@ class Container(BaseFactory):
                     **self.container_run_kwargs,
                 )
 
-        :keyword int start_timeout:
+        start_timeout:
             The maximum number of seconds we should wait until the container is running.
-        :keyword int max_start_attempts:
+        max_start_attempts:
             The maximum number of attempts to try and start the container
-        :keyword bool pull_before_start:
+        pull_before_start:
             When ``True``, the image is pulled before trying to start it
-        :keyword bool skip_on_pull_failure:
+        skip_on_pull_failure:
             When ``True``, and there's a failure when pulling the image, the test is skipped.
-        :keyword bool skip_if_docker_client_not_connectable:
+        skip_if_docker_client_not_connectable:
             When ``True``, it skips the test if there's a failure when connecting to docker
-        :keyword Docker docker_client:
+        docker_client:
             An instance of the python docker client to use.
             When nothing is passed, a default docker client is instantiated.
     """
@@ -229,12 +229,16 @@ class Container(BaseFactory):
         """
         Register a function callback to run before the container starts.
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+        Arguments:
+            callback:
+                The function to call back
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
+
+        Returns:
+            Nothing.
         """
         self._before_start_callbacks.append(Callback(func=callback, args=args, kwargs=kwargs))
 
@@ -242,12 +246,16 @@ class Container(BaseFactory):
         """
         Register a function callback to run after the container starts.
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+        Arguments:
+            callback:
+                The function to call back
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
+
+        Returns:
+            Nothing.
         """
         self._after_start_callbacks.append(Callback(func=callback, args=args, kwargs=kwargs))
 
@@ -255,12 +263,16 @@ class Container(BaseFactory):
         """
         Register a function callback to run before the container terminates.
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+        Arguments:
+            callback:
+                The function to call back
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
+
+        Returns:
+            Nothing.
         """
         self._before_terminate_callbacks.append(Callback(func=callback, args=args, kwargs=kwargs))
 
@@ -268,12 +280,16 @@ class Container(BaseFactory):
         """
         Register a function callback to run after the container terminates.
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+        Arguments:
+            callback:
+                The function to call back
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
+
+        Returns:
+            Nothing.
         """
         self._after_terminate_callbacks.append((callback, args, kwargs))
 
@@ -285,26 +301,29 @@ class Container(BaseFactory):
         The callback must stop trying to confirm running behavior once ``time.time() > timeout_at``.
         The callback should return ``True`` to confirm that the daemon is ready for work.
 
-        For example:
+        Arguments:
+            callback:
+                The function to call back
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
 
-        .. code-block:: python
+        Returns:
+            Nothing.
 
-            def check_running_state(timeout_at: float) -> bool:
-                while time.time() <= timeout_at:
-                    # run some checks
-                    ...
-                    # if all is good
-                    break
-                else:
-                    return False
-                return True
+        Example:
+            .. code-block:: python
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+                def check_running_state(timeout_at: float) -> bool:
+                    while time.time() <= timeout_at:
+                        # run some checks
+                        ...
+                        # if all is good
+                        break
+                    else:
+                        return False
+                    return True
         """
         self._container_start_checks_callbacks.append(
             Callback(func=callback, args=args, kwargs=kwargs)
@@ -530,9 +549,13 @@ class Container(BaseFactory):
         """
         Return the host binding for a port on the container.
 
-        Args:
-            :keyword str protocol: The port protocol. Defaults to ``tcp``.
-            :keyword bool ipv6:
+        Arguments:
+            port:
+                The port binding inside the container for which we want the host port binding
+        Keyword Arguments:
+            protocol:
+                The port protocol. Defaults to ``tcp``.
+            ipv6:
                 If true, return the ipv6 port binding.
 
         Returns:
@@ -783,9 +806,9 @@ class SaltDaemon(Container, bases.SaltDaemon):
         """
         Construct a list of arguments to use when starting the container.
 
-        :param str args:
-            Additional arguments to use when starting the container
-
+        Arguments:
+            args:
+                Additional arguments to use when starting the container
         """
         return ["docker", "exec", "-i", self.name] + super().cmdline(*args)
 
@@ -843,14 +866,18 @@ class SaltDaemon(Container, bases.SaltDaemon):
         """
         Register a function callback to run before the daemon starts.
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword bool on_container:
-            If true, the callback will be registered on the container and not the daemon.
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+        Arguments:
+            callback:
+                The function to call back
+            on_container:
+                If true, the callback will be registered on the container and not the daemon.
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
+
+        Returns:
+            Nothing.
         """
         if on_container:
             Container.before_start(self, callback, *args, **kwargs)
@@ -863,14 +890,18 @@ class SaltDaemon(Container, bases.SaltDaemon):
         """
         Register a function callback to run after the daemon starts.
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword bool on_container:
-            If true, the callback will be registered on the container and not the daemon.
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+        Arguments:
+            callback:
+                The function to call back
+            on_container:
+                If true, the callback will be registered on the container and not the daemon.
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
+
+        Returns:
+            Nothing.
         """
         if on_container:
             Container.after_start(self, callback, *args, **kwargs)
@@ -883,14 +914,18 @@ class SaltDaemon(Container, bases.SaltDaemon):
         """
         Register a function callback to run before the daemon terminates.
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword bool on_container:
-            If true, the callback will be registered on the container and not the daemon.
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+        Arguments:
+            callback:
+                The function to call back
+            on_container:
+                If true, the callback will be registered on the container and not the daemon.
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
+
+        Returns:
+            Nothing.
         """
         if on_container:
             Container.before_terminate(self, callback, *args, **kwargs)
@@ -903,14 +938,18 @@ class SaltDaemon(Container, bases.SaltDaemon):
         """
         Register a function callback to run after the daemon terminates.
 
-        :param ~collections.abc.Callable callback:
-            The function to call back
-        :keyword bool on_container:
-            If true, the callback will be registered on the container and not the daemon.
-        :keyword args:
-            The arguments to pass to the callback
-        :keyword kwargs:
-            The keyword arguments to pass to the callback
+        Arguments:
+            callback:
+                The function to call back
+            on_container:
+                If true, the callback will be registered on the container and not the daemon.
+            args:
+                The arguments to pass to the callback
+            kwargs:
+                The keyword arguments to pass to the callback
+
+        Returns:
+            Nothing.
         """
         if on_container:
             Container.after_terminate(self, callback, *args, **kwargs)

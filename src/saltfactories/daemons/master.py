@@ -346,15 +346,14 @@ class SaltMaster(SaltDaemon):
         """
         Return a salt-cloud CLI instance.
 
-        Args:
-            defaults(dict):
+        Keyword Arguments:
+            defaults:
                 A dictionary of default configuration to use when configuring the minion
-            overrides(dict):
+            overrides:
                 A dictionary of configuration overrides to use when configuring the minion
 
         Returns:
-            :py:class:`~saltfactories.cli.cloud.SaltCloud`:
-                The salt-cloud CLI script process class instance
+            The salt-cloud CLI script process class instance
         """
         root_dir = pathlib.Path(self.config["root_dir"])
 
@@ -502,14 +501,14 @@ class SaltMaster(SaltDaemon):
         """
         Return a `salt-ssh` CLI process for this master instance.
 
-        Args:
-            roster_file(str):
+        Keyword Arguments:
+            roster_file:
                 The roster file to use
-            target_host(str):
+            target_host:
                 The target host address to connect to
-            client_key(str):
+            client_key:
                 The path to the private ssh key to use to connect
-            ssh_user(str):
+            ssh_user:
                 The remote username to connect as
         """  # noqa: D417
         if self.system_install is False:
