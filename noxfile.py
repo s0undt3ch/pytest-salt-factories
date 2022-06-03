@@ -307,7 +307,7 @@ def lint_code(session):
     """
     Run PyLint against the code. Set PYLINT_REPORT to a path to capture output.
     """
-    flags = ["--disable=I"]
+    flags = ["--disable=I", "--ignore-paths=src/saltfactories/downgraded/.*"]
     if session.posargs:
         paths = session.posargs
     else:

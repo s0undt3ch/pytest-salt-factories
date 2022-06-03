@@ -42,6 +42,7 @@ deepcopy
 defaultdict
 dereference
 destpath
+dirname
 dmux
 dns
 dunder
@@ -62,6 +63,7 @@ fds
 fnmatch
 formatter
 freebsd
+fullname
 func
 funcname
 getsockname

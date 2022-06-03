@@ -1,6 +1,67 @@
+import importlib.abc
 import pathlib
 import re
 import sys
+
+USE_DOWNGRADED_TRANSPILED_CODE = sys.version_info < (3, 7)
+
+
+if USE_DOWNGRADED_TRANSPILED_CODE:
+    # We generated downgraded code just for Py<3.7
+    # Let's just import from those modules instead
+
+    class NoTypingImporter(importlib.abc.SourceLoader):
+        """
+        Meta importer to redirect imports on Py<3.7.
+        """
+
+        NO_REDIRECT_NAMES = (
+            "saltfactories.version",
+            "saltfactories.downgraded",
+        )
+
+        def find_module(self, module_name, package_path=None):  # noqa: D102
+            if module_name.startswith(self.NO_REDIRECT_NAMES):
+                return None
+            if not module_name.startswith("saltfactories"):
+                return None
+            return self
+
+        def load_module(self, name):  # noqa: D102
+            if not name.startswith(self.NO_REDIRECT_NAMES):
+                mod = importlib.import_module("saltfactories.downgraded.{}".format(name[14:]))
+            else:
+                mod = importlib.import_module(name)
+            sys.modules[name] = mod
+            return mod
+
+        def get_data(self, path):
+            """
+            Reads path as a binary file and returns the bytes from it.
+            """
+            return pathlib.Path(path).read_bytes()
+
+        def get_filename(self, fullname):
+            """
+            Return the filename matching the fullname.
+            """
+            if not fullname.startswith(self.NO_REDIRECT_NAMES):
+                fullname = "saltfactories.downgraded.{}".format(fullname[14:])
+            path_parts = fullname.split(".")
+            filename = path_parts.pop()  # grab the file name or dirname
+            path_parts.pop(0)  # drop saltfactories
+            path = pathlib.Path(__file__).parent
+            if path_parts:
+                path = path.joinpath(*path_parts)
+            if path.joinpath(filename).is_dir():
+                path = path / filename / "__init__.py"
+            else:
+                path = path / "{}.py".format(filename)
+            return str(path)
+
+    # Try our importer first
+    sys.meta_path = [NoTypingImporter()] + sys.meta_path
+
 
 try:
     from .version import __version__
