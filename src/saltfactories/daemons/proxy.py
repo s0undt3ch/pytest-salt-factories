@@ -4,6 +4,8 @@ Salt Proxy Minion Factory.
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import copy
 import logging
 import pathlib
@@ -35,7 +37,7 @@ class SystemdSaltProxyImpl(SystemdSaltDaemonImpl):
         Return the systemd service name.
         """
         if self._service_name is None:
-            self._service_name = "{}@{}".format(super().get_service_name(), self.factory.id)
+            self._service_name = f"{super().get_service_name()}@{self.factory.id}"
         return self._service_name
 
 
@@ -132,7 +134,7 @@ class SaltProxyMinion(SaltDaemon):
                 "proxy": {"proxytype": "dummy"},
                 "pytest-minion": {
                     "master-id": master_id,
-                    "log": {"prefix": "{}(id={!r})".format(cls.__name__, proxy_minion_id)},
+                    "log": {"prefix": f"{cls.__name__}(id={proxy_minion_id!r})"},
                 },
             }
         else:
@@ -191,7 +193,7 @@ class SaltProxyMinion(SaltDaemon):
                 "acceptance_wait_time_max": 5,
                 "pytest-minion": {
                     "master-id": master_id,
-                    "log": {"prefix": "{}(id={!r})".format(cls.__name__, proxy_minion_id)},
+                    "log": {"prefix": f"{cls.__name__}(id={proxy_minion_id!r})"},
                 },
             }
         # Merge in the initial default options with the internal _defaults
@@ -270,7 +272,7 @@ class SaltProxyMinion(SaltDaemon):
             if arg.startswith("--proxyid"):
                 break
         else:
-            _args.append("--proxyid={}".format(self.id))
+            _args.append(f"--proxyid={self.id}")
         return super().cmdline(*(_args + list(args)))
 
     def get_check_events(self):
@@ -309,7 +311,7 @@ class SaltProxyMinion(SaltDaemon):
         return factory_class(
             script_name=script_path,
             config=self.config.copy(),
-            base_script_args=["--proxyid={}".format(self.id)],
+            base_script_args=[f"--proxyid={self.id}"],
             system_install=self.factories_manager.system_install,
-            **factory_class_kwargs
+            **factory_class_kwargs,
         )

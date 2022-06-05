@@ -4,6 +4,8 @@
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import re
 
 import attr

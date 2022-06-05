@@ -1,15 +1,26 @@
 """
 Salt's Loader PyTest Mock Support.
 """
+from __future__ import annotations
+
 import logging
 import sys
 import types
 from collections import deque
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Tuple
 from unittest.mock import patch
 
 import attr
 import pytest
 from pytestshellutils.utils import format_callback_to_string
+
+try:
+    from typing import Deque
+except ImportError:
+    from typing_extensions import Deque
 
 log = logging.getLogger(__name__)
 
@@ -20,9 +31,9 @@ class LoaderModuleMock:
     Salt Loader mock class.
     """
 
-    setup_loader_modules = attr.ib(init=True)
+    setup_loader_modules: Dict[str, Dict[str, Any]] = attr.ib(init=True)
     # These dunders should always exist at the module global scope
-    salt_module_dunders = attr.ib(
+    salt_module_dunders: Tuple[str, ...] = attr.ib(
         init=True,
         repr=False,
         kw_only=True,
@@ -43,14 +54,14 @@ class LoaderModuleMock:
         ),
     )
     # These dunders might exist at the module global scope
-    salt_module_dunders_optional = attr.ib(
+    salt_module_dunders_optional: Tuple[str, ...] = attr.ib(
         init=True,
         repr=False,
         kw_only=True,
         default=("__proxy__",),
     )
     # These dunders might exist at the function global scope
-    salt_module_dunder_attributes = attr.ib(
+    salt_module_dunder_attributes: Tuple[str, ...] = attr.ib(
         init=True,
         repr=False,
         kw_only=True,
@@ -68,15 +79,23 @@ class LoaderModuleMock:
             "__proxyenabled__",
         ),
     )
-    _finalizers = attr.ib(init=False, repr=False, hash=False, default=attr.Factory(deque))
+    _finalizers: Deque[Tuple[Callable[..., None], Any, Any]] = attr.ib(
+        init=False, repr=False, hash=False, default=attr.Factory(deque)
+    )
 
-    def start(self):
+    def start(self) -> None:
         """
         Start mocks.
         """
-        module_globals = {dunder: {} for dunder in self.salt_module_dunders}
+        module_globals: Dict[str, Dict[Any, Any]] = {
+            dunder: {} for dunder in self.salt_module_dunders
+        }
         for module, globals_to_mock in self.setup_loader_modules.items():
-            log.trace("Setting up loader globals for %s; globals: %s", module, globals_to_mock)
+            log.trace(  # type: ignore[attr-defined]
+                "Setting up loader globals for %s; globals: %s",
+                module,
+                globals_to_mock,
+            )
             if not isinstance(module, types.ModuleType):
                 raise pytest.UsageError(
                     "The dictionary keys returned by setup_loader_modules() "
@@ -105,7 +124,7 @@ class LoaderModuleMock:
             # added in the start of this function
             self._patch_module_globals(module, globals_to_mock, module_globals.copy())
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop mocks.
         """
@@ -113,7 +132,7 @@ class LoaderModuleMock:
             func, args, kwargs = self._finalizers.popleft()
             func_repr = format_callback_to_string(func, args, kwargs)
             try:
-                log.trace("Calling finalizer %s", func_repr)
+                log.trace("Calling finalizer %s", func_repr)  # type: ignore[attr-defined]
                 func(*args, **kwargs)
             except Exception as exc:  # pragma: no cover pylint: disable=broad-except
                 log.error(
@@ -123,25 +142,25 @@ class LoaderModuleMock:
                     exc_info=True,
                 )
 
-    def addfinalizer(self, func, *args, **kwargs):
+    def addfinalizer(self, func: Callable[..., None], *args: Any, **kwargs: Any) -> None:
         """
         Register a function to run when stopping.
         """
         self._finalizers.append((func, args, kwargs))
 
-    def _patch_sys_modules(self, mocks):
+    def _patch_sys_modules(self, mocks: Dict[str, Any]) -> None:
         if "sys.modules" not in mocks:
             return
         sys_modules = mocks["sys.modules"]
         if not isinstance(sys_modules, dict):
-            raise pytest.UsageError(
-                "'sys.modules' must be a dictionary not: {}".format(type(sys_modules))
-            )
+            raise pytest.UsageError(f"'sys.modules' must be a dictionary not: {type(sys_modules)}")
         patcher = patch.dict(sys.modules, values=sys_modules)
         patcher.start()
         self.addfinalizer(patcher.stop)
 
-    def _patch_module_globals(self, module, mocks, module_globals):
+    def _patch_module_globals(
+        self, module: types.ModuleType, mocks: Dict[str, Any], module_globals: Dict[str, Any]
+    ) -> None:
         salt_dunder_dicts = self.salt_module_dunders + self.salt_module_dunders_optional
         allowed_salt_dunders = salt_dunder_dicts + self.salt_module_dunder_attributes
         for key in mocks:
@@ -178,19 +197,19 @@ class LoaderModuleMock:
             module_globals[key] = mocks[key]
 
         # Patch the module!
-        log.trace("Patching globals for %s; globals: %s", module, module_globals)
+        log.trace("Patching globals for %s; globals: %s", module, module_globals)  # type: ignore[attr-defined]
         patcher = patch.multiple(module, **module_globals)
         patcher.start()
         self.addfinalizer(patcher.stop)
 
-    def __enter__(self):
+    def __enter__(self) -> LoaderModuleMock:
         """
         Use the mock class as a context manager.
         """
         self.start()
         return self
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: Any) -> None:
         """
         Exit context manager.
         """

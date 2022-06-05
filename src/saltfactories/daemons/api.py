@@ -4,6 +4,8 @@ Salt API Factory.
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import attr
 import pytest
 

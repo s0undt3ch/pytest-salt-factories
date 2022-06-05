@@ -4,8 +4,16 @@ Salt Client in-process implementation.
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import logging
 import re
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Pattern
+from typing import Tuple
+from typing import Union
 
 import attr
 import pytest
@@ -21,17 +29,17 @@ class LocalClient:
     Wrapper class around Salt's local client.
     """
 
-    STATE_FUNCTION_RUNNING_RE = re.compile(
+    STATE_FUNCTION_RUNNING_RE: Pattern[str] = re.compile(
         r"""The function (?:"|')(?P<state_func>.*)(?:"|') is running as PID """
         r"(?P<pid>[\d]+) and was started at (?P<date>.*) with jid (?P<jid>[\d]+)"
     )
 
-    master_config = attr.ib(repr=False)
-    functions_known_to_return_none = attr.ib(repr=False)
-    __client = attr.ib(init=False, repr=False)
+    master_config: Dict[str, Any] = attr.ib(repr=False)
+    functions_known_to_return_none: Union[List[str], Tuple[str, ...]] = attr.ib(repr=False)
+    __client: salt.client.LocalClient = attr.ib(init=False, repr=False)
 
     @functions_known_to_return_none.default
-    def _set_functions_known_to_return_none(self):
+    def _set_functions_known_to_return_none(self) -> Tuple[str, ...]:
         return (
             "data.get",
             "file.chown",
@@ -42,10 +50,17 @@ class LocalClient:
         )
 
     @__client.default
-    def _set_client(self):
+    def _set_client(self) -> salt.client.LocalClient:
         return salt.client.get_local_client(mopts=self.master_config)
 
-    def run(self, function, *args, minion_tgt="minion", timeout=300, **kwargs):
+    def run(
+        self,
+        function: str,
+        *args: Any,
+        minion_tgt: str = "minion",
+        timeout: int = 300,
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Run a single salt function.
 
@@ -55,13 +70,15 @@ class LocalClient:
             kwargs["arg"] = kwargs.pop("f_arg")
         if "f_timeout" in kwargs:
             kwargs["timeout"] = kwargs.pop("f_timeout")
-        ret = self.__client.cmd(minion_tgt, function, args, timeout=timeout, kwarg=kwargs)
+        ret: Dict[str, Union[List[Dict[str, Any]], Dict[str, Any]]] = self.__client.cmd(
+            minion_tgt, function, args, timeout=timeout, kwarg=kwargs
+        )
         if minion_tgt not in ret:
             pytest.fail(
                 "WARNING(SHOULD NOT HAPPEN #1935): Failed to get a reply "
                 "from the minion '{}'. Command output: {}".format(minion_tgt, ret)
             )
-        elif ret[minion_tgt] is None and function not in self.__functions_known_to_return_none:
+        elif ret[minion_tgt] is None and function not in self.functions_known_to_return_none:
             pytest.fail(
                 "WARNING(SHOULD NOT HAPPEN #1935): Failed to get '{}' from "
                 "the minion '{}'. Command output: {}".format(function, minion_tgt, ret)
@@ -72,13 +89,15 @@ class LocalClient:
 
         return ret[minion_tgt]
 
-    def _check_state_return(self, ret):
+    def _check_state_return(
+        self, ret: Union[List[Dict[str, Any]], Dict[str, Any]]
+    ) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         if isinstance(ret, dict):
             # This is the supposed return format for state calls
             return ret
 
         if isinstance(ret, list):
-            jids = []
+            jids: List[str] = []
             # These are usually errors
             for item in ret[:]:
                 if not isinstance(item, str):
@@ -100,5 +119,5 @@ class LocalClient:
                     "A running state.single was found causing a state lock. "
                     "Job details: '{}'  Killing Job Returned: '{}'".format(job_data, job_kill)
                 )
-                ret.append("[TEST SUITE ENFORCED]{}[/TEST SUITE ENFORCED]".format(msg))
+                ret.append(f"[TEST SUITE ENFORCED]{msg}[/TEST SUITE ENFORCED]")
         return ret

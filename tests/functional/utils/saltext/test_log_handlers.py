@@ -1,15 +1,24 @@
+from __future__ import annotations
+
 import logging
 import sys
 from datetime import datetime
 from datetime import timedelta
+from typing import Dict
+from typing import List
+from typing import TYPE_CHECKING
 
 import pytest
 import pytestskipmarkers.utils.platform
+from _pytest.logging import LogCaptureFixture
 from pytestshellutils.exceptions import FactoryTimeout
 from pytestshellutils.shell import ScriptSubprocess
 
+from saltfactories.manager import FactoriesManager
+from tests.conftest import Tempfiles
 
-def test_handler_does_not_block_when_not_connected(tempfiles):
+
+def test_handler_does_not_block_when_not_connected(tempfiles: Tempfiles) -> None:
     log_forwarding_socket_hwm = 5
     shell = ScriptSubprocess(script_name=sys.executable, timeout=10)
     script = tempfiles.makepyfile(
@@ -54,7 +63,7 @@ def test_handler_does_not_block_when_not_connected(tempfiles):
     try:
         result = shell.run(script)
     except FactoryTimeout as exc:  # pragma: no cover
-        pytest.fail("The ZMQHandler blocked. Process result:\n{}".format(exc))
+        pytest.fail(f"The ZMQHandler blocked. Process result:\n{exc}")
     # If the exitcode is not 0, that means the script was forcefully terminated, which,
     # in turn means the ZMQHandler blocked the process when not connected to the log
     # listener.
@@ -63,11 +72,13 @@ def test_handler_does_not_block_when_not_connected(tempfiles):
     # Since we set a HWM of log_forwarding_socket_hwm, we should at least see
     # Foo {log_forwarding_socket_hwm + 1} logged to the console.
     # If we don't, the handler blocked the process
-    assert "Foo {}".format(log_forwarding_socket_hwm + 1) in result.stderr
+    assert f"Foo {log_forwarding_socket_hwm + 1}" in result.stderr
     assert result.returncode == 0
 
 
-def test_all_messages_received(tempfiles, salt_factories, caplog):
+def test_all_messages_received(
+    tempfiles: Tempfiles, salt_factories: FactoriesManager, caplog: LogCaptureFixture
+) -> None:
     log_forwarding_socket_hwm = 500
     log_forwarding_calls = log_forwarding_socket_hwm * 2
     shell = ScriptSubprocess(script_name=sys.executable, timeout=10)
@@ -113,13 +124,13 @@ def test_all_messages_received(tempfiles, salt_factories, caplog):
         try:
             result = shell.run(script)
         except FactoryTimeout as exc:  # pragma: no cover
-            pytest.fail("The ZMQHandler blocked. Process result:\n{}".format(exc))
+            pytest.fail(f"The ZMQHandler blocked. Process result:\n{exc}")
         # If the exitcode is not 0, that means the script was forcefully terminated, which,
         # in turn means the ZMQHandler blocked the process when not connected to the log
         # listener.
         assert "Logging started" in result.stdout
         assert "Logging finished" in result.stdout
-        expected_log_message = "Foo:{}".format(log_forwarding_calls)
+        expected_log_message = f"Foo:{log_forwarding_calls}"
         assert expected_log_message in result.stderr
         assert result.returncode == 0
 
@@ -150,16 +161,19 @@ def test_all_messages_received(tempfiles, salt_factories, caplog):
 
 
 @pytest.mark.parametrize("fork_method", ("fork", "spawn"))
-def test_all_messages_received_multiprocessing(tempfiles, salt_factories, caplog, fork_method):
+def test_all_messages_received_multiprocessing(
+    tempfiles: Tempfiles,
+    salt_factories: FactoriesManager,
+    caplog: LogCaptureFixture,
+    fork_method: str,
+) -> None:
     # The purpose of this test is just to make sure if forked/spawned processes inherit the
     # ZMQHandler and continue logging
     if fork_method == "fork":
         if pytestskipmarkers.utils.platform.is_windows():
-            pytest.skip("Start method '{}' is not supported on Windows".format(fork_method))
+            pytest.skip(f"Start method '{fork_method}' is not supported on Windows")
         if sys.version_info >= (3, 8) and pytestskipmarkers.utils.platform.is_darwin():
-            pytest.skip(
-                "Start method '{}' is not supported on Darwin on Py3.8+".format(fork_method)
-            )
+            pytest.skip(f"Start method '{fork_method}' is not supported on Darwin on Py3.8+")
     num_processes = 2
     log_forwarding_calls = 10
     shell = ScriptSubprocess(script_name=sys.executable, timeout=30)
@@ -259,7 +273,7 @@ def test_all_messages_received_multiprocessing(tempfiles, salt_factories, caplog
         try:
             result = shell.run(script)
         except FactoryTimeout as exc:  # pragma: no cover
-            pytest.fail("The ZMQHandler blocked. Process result:\n{}".format(exc))
+            pytest.fail(f"The ZMQHandler blocked. Process result:\n{exc}")
         # If the exitcode is not 0, that means the script was forcefully terminated, which,
         # in turn means the ZMQHandler blocked the process when not connected to the log
         # listener.
@@ -274,7 +288,7 @@ def test_all_messages_received_multiprocessing(tempfiles, salt_factories, caplog
         # We start N processes and each process starts N processes
         expected_process_count = (num_processes * num_processes) + num_processes
         while True:
-            procs = {}
+            procs: Dict[str, List[int]] = {}
             # We try multiple times because the script might have properly
             # flushed it's messages to the log server, but the log server
             # might still be processing them
@@ -282,6 +296,8 @@ def test_all_messages_received_multiprocessing(tempfiles, salt_factories, caplog
                 if record.msg.startswith("Foo"):
                     _, msgnum, pid = record.message.split(":")
                     assert record.process == int(pid)
+                    if TYPE_CHECKING:
+                        assert record.processName
                     procs.setdefault(record.processName, []).append(int(msgnum))
             try:
                 assert procs

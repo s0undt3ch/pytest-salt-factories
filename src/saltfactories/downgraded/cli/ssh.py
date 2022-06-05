@@ -31,11 +31,11 @@ class SaltSsh(SaltCli):
         """
         script_args = super().get_script_args()
         if self.roster_file:
-            script_args.append('--roster-file={}'.format(self.roster_file))
+            script_args.append('--roster-file={0}'.format(self.roster_file))
         if self.client_key:
-            script_args.append('--priv={}'.format(self.client_key))
+            script_args.append('--priv={0}'.format(self.client_key))
         if self.ssh_user:
-            script_args.append('--user={}'.format(self.ssh_user))
+            script_args.append('--user={0}'.format(self.ssh_user))
         return script_args
 
     def get_minion_tgt(self, minion_tgt=None):

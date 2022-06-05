@@ -1,6 +1,8 @@
 """
 ``spm`` CLI factory.
 """
+from __future__ import annotations
+
 import attr
 
 from saltfactories.bases import SaltCli

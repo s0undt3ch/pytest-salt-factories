@@ -8,7 +8,15 @@ from __future__ import generator_stop
 import copy
 import logging
 import pathlib
-import shutil
+from typing import Any
+from typing import cast
+from typing import Dict
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import TYPE_CHECKING
 import attr
 import salt.config
 import salt.utils.dictupdate
@@ -16,10 +24,12 @@ from pytestskipmarkers.utils import platform
 from pytestskipmarkers.utils import ports
 from saltfactories import cli
 from saltfactories.bases import SaltDaemon
-from saltfactories.utils import cli_scripts
 from saltfactories.utils.tempfiles import SaltPillarTree
 from saltfactories.utils.tempfiles import SaltStateTree
 
+if TYPE_CHECKING:
+    from saltfactories.manager import FactoriesManager
+    from saltfactories.daemons.master import SaltMaster
 log = logging.getLogger(__name__)
 
 
@@ -33,29 +43,31 @@ class SaltMinion(SaltDaemon):
     pillar_tree = attr.ib(init=False, hash=False, repr=False)
 
     @state_tree.default
-    def __setup_state_tree(self):
+    def __setup_state_tree(self) -> Optional[SaltStateTree]:
         if 'file_roots' in self.config:
             return SaltStateTree(
                 envs=copy.deepcopy(self.config.get('file_roots') or {})
             )
+        return None
 
     @pillar_tree.default
-    def __setup_pillar_tree(self):
+    def __setup_pillar_tree(self) -> Optional[SaltPillarTree]:
         if 'pillar_roots' in self.config:
             return SaltPillarTree(
                 envs=copy.deepcopy(self.config.get('pillar_roots') or {})
             )
+        return None
 
     @classmethod
     def default_config(
         cls,
-        root_dir,
-        minion_id,
-        defaults=None,
-        overrides=None,
-        master=None,
-        system_install=False,
-    ):
+        root_dir: pathlib.Path,
+        minion_id: str,
+        defaults: Optional[Dict[str, Any]] = None,
+        overrides: Optional[Dict[str, Any]] = None,
+        master: Optional[SaltMaster] = None,
+        system_install: bool = False,
+    ) -> Dict[str, Any]:
         """
         Return the default configuration.
         """
@@ -96,7 +108,7 @@ class SaltMinion(SaltDaemon):
                 'pillar_roots': {'base': [str(pillar_tree_root)]},
                 'pytest-minion': {
                     'master-id': master_id,
-                    'log': {'prefix': '{}(id={!r})'.format(cls.__name__, minion_id)},
+                    'log': {'prefix': '{0}(id={1})'.format(cls.__name__, minion_id)},
                 },
             }
         else:
@@ -146,7 +158,7 @@ class SaltMinion(SaltDaemon):
                 'acceptance_wait_time_max': 5,
                 'pytest-minion': {
                     'master-id': master_id,
-                    'log': {'prefix': '{}(id={!r})'.format(cls.__name__, minion_id)},
+                    'log': {'prefix': '{0}(id={1})'.format(cls.__name__, minion_id)},
                 },
             }
         salt.utils.dictupdate.update(defaults, _defaults, merge_lists=True)
@@ -157,13 +169,14 @@ class SaltMinion(SaltDaemon):
     @classmethod
     def _configure(
         cls,
-        factories_manager,
-        daemon_id,
-        root_dir=None,
-        defaults=None,
-        overrides=None,
-        master=None,
-    ):
+        *,
+        factories_manager: FactoriesManager,
+        daemon_id: str,
+        root_dir: pathlib.Path,
+        defaults: Optional[Dict[str, Any]] = None,
+        overrides: Optional[Dict[str, Any]] = None,
+        master: Optional[SaltMaster] = None
+    ) -> Dict[str, Any]:
         return cls.default_config(
             root_dir,
             daemon_id,
@@ -174,7 +187,7 @@ class SaltMinion(SaltDaemon):
         )
 
     @classmethod
-    def _get_verify_config_entries(cls, config):
+    def _get_verify_config_entries(cls, config: Dict[str, Any]) -> List[str]:
         pki_dir = pathlib.Path(config['pki_dir'])
         verify_env_entries = [
             str(pki_dir / 'minions'),
@@ -196,15 +209,18 @@ class SaltMinion(SaltDaemon):
         return verify_env_entries
 
     @classmethod
-    def load_config(cls, config_file, config):
+    def load_config(cls, config_file: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Return the loaded configuration.
         """
-        return salt.config.minion_config(
-            config_file, minion_id=config['id'], cache_minion_id=True
+        return cast(
+            Dict[str, Any],
+            salt.config.minion_config(
+                config_file, minion_id=config['id'], cache_minion_id=True
+            ),
         )
 
-    def get_script_args(self):
+    def get_script_args(self) -> List[str]:
         """
         Return the script arguments.
         """
@@ -213,7 +229,7 @@ class SaltMinion(SaltDaemon):
             args.append('--disable-keepalive')
         return args
 
-    def get_check_events(self):
+    def get_check_events(self) -> Iterator[Tuple[str, str]]:
         """
         Return salt events to check.
 
@@ -231,20 +247,15 @@ class SaltMinion(SaltDaemon):
                 role=self.config['__role'], id=self.id
             )
 
-    def salt_call_cli(self, factory_class=cli.call.SaltCall, **factory_class_kwargs):
+    def salt_call_cli(
+        self,
+        factory_class: Type[cli.call.SaltCall] = cli.call.SaltCall,
+        **factory_class_kwargs: Any
+    ) -> cli.call.SaltCall:
         """
         Return a `salt-call` CLI process for this minion instance.
         """
-        if self.system_install is False:
-            script_path = cli_scripts.generate_script(
-                self.factories_manager.scripts_dir,
-                'salt-call',
-                code_dir=self.factories_manager.code_dir,
-                inject_coverage=self.factories_manager.inject_coverage,
-                inject_sitecustomize=self.factories_manager.inject_sitecustomize,
-            )
-        else:
-            script_path = shutil.which('salt-call')
+        script_path = self.factories_manager.get_salt_script_path('salt-call')
         return factory_class(
             script_name=script_path,
             config=self.config.copy(),

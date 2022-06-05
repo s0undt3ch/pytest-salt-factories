@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import functools
 import logging
 import os
@@ -5,9 +7,15 @@ import pathlib
 import stat
 import tempfile
 import textwrap
+from typing import cast
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import pytest
 import salt.version
+from _pytest.fixtures import FixtureRequest
+from _pytest.python import Function
 
 log = logging.getLogger(__name__)
 
@@ -26,11 +34,11 @@ except ImportError:  # pragma: no cover
     except ImportError:  # pragma: no cover
         import pkg_resources
 
-        def pkg_version(package):
+        def pkg_version(package: str) -> str:
             return pkg_resources.get_distribution(package).version
 
 
-def pkg_version_info(package):
+def pkg_version_info(package: str) -> Tuple[int, ...]:
     return tuple(int(part) for part in pkg_version(package).split(".") if part.isdigit())
 
 
@@ -39,12 +47,12 @@ if pkg_version_info("pytest") >= (6, 2):
 else:
 
     @pytest.fixture
-    def pytester():
+    def pytester() -> None:
         pytest.skip("The pytester fixture is not available in Pytest < 6.2.0")
 
 
-def pytest_report_header():
-    return "salt-version: {}".format(salt.version.__version__)
+def pytest_report_header() -> str:
+    return f"salt-version: {salt.version.__version__}"
 
 
 class Tempfiles:
@@ -52,10 +60,12 @@ class Tempfiles:
     Class which generates temporary files and cleans them when done
     """
 
-    def __init__(self, request):
+    def __init__(self, request: FixtureRequest):
         self.request = request
 
-    def makepyfile(self, contents, prefix=None, executable=False):
+    def makepyfile(
+        self, contents: str, prefix: Optional[str] = None, executable: bool = False
+    ) -> str:
         """
         Creates a python file and returns it's path
         """
@@ -76,7 +86,7 @@ class Tempfiles:
             )
         return tfile.name
 
-    def makeslsfile(self, contents, name=None):
+    def makeslsfile(self, contents: str, name: Optional[str] = None) -> str:
         """
         Creates an sls file and returns it's path
         """
@@ -96,7 +106,7 @@ class Tempfiles:
             )
         return name
 
-    def _delete_temp_file(self, fpath):
+    def _delete_temp_file(self, fpath: str) -> None:
         """
         Cleanup the temporary path
         """
@@ -105,7 +115,7 @@ class Tempfiles:
 
 
 @pytest.fixture
-def tempfiles(request):
+def tempfiles(request: FixtureRequest) -> Tempfiles:
     """
     Temporary files fixture
     """
@@ -113,11 +123,11 @@ def tempfiles(request):
 
 
 @pytest.fixture(scope="session")
-def salt_version():
-    return pkg_version("salt")
+def salt_version() -> str:
+    return cast(str, pkg_version("salt"))
 
 
-def pytest_collection_modifyitems(items):
+def pytest_collection_modifyitems(items: List[Function]) -> None:
     system_install_skip_paths = (
         # There's no point on running these tests against a system install of salt
         str(TESTS_PATH / "unit"),

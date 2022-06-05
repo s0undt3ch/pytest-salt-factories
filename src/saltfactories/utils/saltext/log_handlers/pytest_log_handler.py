@@ -1,6 +1,8 @@
 """
 Salt External Logging Handler.
 """
+from __future__ import annotations
+
 import copy
 import logging
 import os
@@ -9,6 +11,18 @@ import socket
 import sys
 import time
 import traceback
+from typing import Any
+from typing import cast
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import TYPE_CHECKING
+from typing import Union
+
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
 try:
     from salt.utils.stringutils import to_unicode
@@ -37,13 +51,25 @@ try:
 except ImportError:  # pragma: no cover
     HAS_ZMQ = False
 
+if TYPE_CHECKING:
+    __opts__: Dict[str, Any]
+
 
 __virtualname__ = "pytest_log_handler"
 
 log = logging.getLogger(__name__)
 
 
-def __virtual__():
+class LogConfig(TypedDict):  # noqa: D101
+    host: str
+    level: str
+    port: int
+    prefix: str
+    disabled: bool
+    pytest_windows_guest: bool
+
+
+def __virtual__() -> Union[Tuple[bool, str], bool]:
     if HAS_MSGPACK is False:
         return False, "msgpack was not importable. Please install msgpack."
     if HAS_ZMQ is False:
@@ -51,19 +77,19 @@ def __virtual__():
     if "__role" not in __opts__:
         return False, "The required '__role' key could not be found in the options dictionary"
     role = __opts__["__role"]
-    pytest_key = "pytest-{}".format(role)
+    pytest_key = f"pytest-{role}"
 
     if pytest_key not in __opts__ and "pytest" not in __opts__:
-        return False, "Neither '{}' nor 'pytest' keys in opts dictionary".format(pytest_key)
+        return False, f"Neither '{pytest_key}' nor 'pytest' keys in opts dictionary"
 
     if pytest_key not in __opts__:
         pytest_key = "pytest"
 
     pytest_config = __opts__[pytest_key]
     if "log" not in pytest_config:
-        return False, "No 'log' key in opts {} dictionary".format(pytest_key)
+        return False, f"No 'log' key in opts {pytest_key} dictionary"
 
-    log_opts = pytest_config["log"]
+    log_opts: LogConfig = pytest_config["log"]
     if "port" not in log_opts:
         return (
             False,
@@ -74,23 +100,25 @@ def __virtual__():
     return True
 
 
-def setup_handlers():
+def setup_handlers() -> Optional[ZMQHandler]:
     """
     Setup the handlers.
     """
     role = __opts__["__role"]
-    pytest_key = "pytest-{}".format(role)
+    pytest_key = f"pytest-{role}"
     pytest_config = __opts__[pytest_key]
-    log_opts = pytest_config["log"]
+    log_opts: LogConfig = pytest_config["log"]
     if log_opts.get("disabled"):
-        return
-    host_addr = log_opts.get("host")
+        return None
+    host_addr: Optional[str] = log_opts.get("host")
     if not host_addr:
         import subprocess
 
         if log_opts["pytest_windows_guest"] is True:
-            proc = subprocess.Popen("ipconfig", stdout=subprocess.PIPE)
-            for line in proc.stdout.read().strip().encode(__salt_system_encoding__).splitlines():
+            proc = subprocess.Popen("ipconfig", stdout=subprocess.PIPE, universal_newlines=True)
+            if TYPE_CHECKING:
+                assert proc.stdout
+            for line in proc.stdout.read().strip().splitlines():
                 if "Default Gateway" in line:
                     parts = line.split()
                     host_addr = parts[-1]
@@ -100,16 +128,22 @@ def setup_handlers():
                 "netstat -rn | grep -E '^0.0.0.0|default' | awk '{ print $2 }'",
                 shell=True,
                 stdout=subprocess.PIPE,
+                universal_newlines=True,
             )
-            host_addr = proc.stdout.read().strip().encode(__salt_system_encoding__)
-    host_port = log_opts["port"]
+            if TYPE_CHECKING:
+                assert proc.stdout
+            host_addr = proc.stdout.read().strip()
+
+    if TYPE_CHECKING:
+        assert host_addr
+    host_port: int = log_opts["port"]
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.connect((host_addr, host_port))
     except OSError as exc:
         # Don't even bother if we can't connect
         log.warning("Cannot connect back to log server at %s:%d: %s", host_addr, host_port, exc)
-        return
+        return None
     finally:
         sock.close()
 
@@ -124,7 +158,7 @@ def setup_handlers():
     return handler
 
 
-class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
+class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):  # type: ignore[misc]
     """
     ZMQ logging handler implementation.
     """
@@ -139,9 +173,14 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
     # reconnect the ZMQ machinery.
 
     def __init__(
-        self, host="127.0.0.1", port=3330, log_prefix=None, level=logging.NOTSET, socket_hwm=100000
-    ):
-        super(ZMQHandler, self).__init__(level=level)
+        self,
+        host: str = "127.0.0.1",
+        port: int = 3330,
+        log_prefix: Optional[str] = None,
+        level: int = logging.NOTSET,
+        socket_hwm: int = 100000,
+    ) -> None:
+        super().__init__(level=level)
         self.host = host
         self.port = port
         self._log_prefix = log_prefix
@@ -153,28 +192,28 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
         # We set the formatter so that we only include the actual log message and not any other
         # fields found in the log record
         self.__formatter = logging.Formatter("%(message)s")
-        self.pid = os.getpid()
+        self.pid: Optional[int] = os.getpid()
 
-    def _get_formatter(self):
+    def _get_formatter(self) -> logging.Formatter:
         return self.__formatter
 
-    def _set_formatter(self, fmt):
+    def _set_formatter(self, fmt: Optional[logging.Formatter]) -> None:
         if fmt is not None:
             self.setFormatter(fmt)
 
-    def _del_formatter(self):
+    def _del_formatter(self) -> None:
         raise RuntimeError("Cannot delete the 'formatter' attribute")
 
     # We set formatter as a property to make it immutable
-    formatter = property(_get_formatter, _set_formatter, _del_formatter)
+    formatter = property(_get_formatter, _set_formatter, _del_formatter)  # type: ignore[assignment]
 
-    def setFormatter(self, _):
+    def setFormatter(self, _: Optional[logging.Formatter]) -> None:
         """
         Overridden method to show an error.
         """
-        raise RuntimeError("Do not set a formatter on {}".format(self.__class__.__name__))
+        raise RuntimeError(f"Do not set a formatter on {self.__class__.__name__}")
 
-    def __getstate__(self):  # noqa: D105
+    def __getstate__(self) -> Dict[str, Any]:  # noqa: D105
         return {
             "host": self.host,
             "port": self.port,
@@ -183,19 +222,19 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
             "socket_hwm": self.socket_hwm,
         }
 
-    def __setstate__(self, state):  # noqa: D105
-        self.__init__(**state)
+    def __setstate__(self, state: Dict[str, Any]) -> None:  # noqa: D105
+        self.__init__(**state)  # type: ignore[misc]
         self.stop()
         self._exiting = False
 
-    def __repr__(self):  # noqa: D105
+    def __repr__(self) -> str:  # noqa: D105
         return "<{} host={} port={} level={}>".format(
             self.__class__.__name__, self.host, self.port, logging.getLevelName(self.level)
         )
 
-    def _get_log_prefix(self, log_prefix):
+    def _get_log_prefix(self, log_prefix: Optional[str] = None) -> Optional[str]:
         if log_prefix is None:
-            return
+            return None
         if sys.argv[0] == sys.executable:
             cli_arg_idx = 1
         else:
@@ -203,7 +242,7 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
         cli_name = os.path.basename(sys.argv[cli_arg_idx])
         return log_prefix.format(cli_name=cli_name)
 
-    def start(self):
+    def start(self) -> None:
         """
         Start the handler.
         """
@@ -224,9 +263,7 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
             context = zmq.Context()
             self.context = context
         except zmq.ZMQError as exc:
-            sys.stderr.write(
-                "Failed to create the ZMQ Context: {}\n{}\n".format(exc, traceback.format_exc())
-            )
+            sys.stderr.write(f"Failed to create the ZMQ Context: {exc}\n{traceback.format_exc()}\n")
             sys.stderr.flush()
             self.stop()
             # Allow the handler to re-try starting
@@ -236,7 +273,7 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
         try:
             pusher = context.socket(zmq.PUSH)
             pusher.set_hwm(self.socket_hwm)
-            pusher.connect("tcp://{}:{}".format(self.host, self.port))
+            pusher.connect(f"tcp://{self.host}:{self.port}")
             self.pusher = pusher
         except zmq.ZMQError as exc:
             if pusher is not None:
@@ -254,7 +291,7 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
 
         self.pid = os.getpid()
 
-    def stop(self, flush=True):
+    def stop(self, flush: bool = True) -> None:
         """
         Stop the handler.
         """
@@ -287,9 +324,7 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
             # Don't write these exceptions to stderr
             raise
         except Exception as exc:  # pragma: no cover pylint: disable=broad-except
-            sys.stderr.write(
-                "Failed to terminate ZMQHandler: {}\n{}\n".format(exc, traceback.format_exc())
-            )
+            sys.stderr.write(f"Failed to terminate ZMQHandler: {exc}\n{traceback.format_exc()}\n")
             sys.stderr.flush()
             raise
         finally:
@@ -301,16 +336,16 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
                 self.context = None
             self.pid = None
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         """
         Format the log record.
         """
-        msg = super(ZMQHandler, self).format(record)
+        msg = super().format(record)
         if self.log_prefix:
-            msg = "[{}] {}".format(to_unicode(self.log_prefix), to_unicode(msg))
+            msg = f"[{to_unicode(self.log_prefix)}] {to_unicode(msg)}"
         return msg
 
-    def prepare(self, record):
+    def prepare(self, record: logging.LogRecord) -> Optional[bytes]:
         """
         Prepare the log record.
         """
@@ -321,11 +356,11 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
         record.args = None
         record.exc_info = None
         record.exc_text = None
-        record.message = None  # redundant with msg
+        record.message = None  # type: ignore[assignment]  # redundant with msg
         # On Python >= 3.5 we also have stack_info, but we've formatted already so, reset it
         record.stack_info = None
         try:
-            return msgpack.dumps(record.__dict__, use_bin_type=True)
+            return cast(bytes, msgpack.dumps(record.__dict__, use_bin_type=True))
         except TypeError as exc:
             # Failed to serialize something with msgpack
             sys.stderr.write(
@@ -335,8 +370,9 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
             )
             sys.stderr.flush()
             self.handleError(record)
+        return None
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         """
         Emit a record.
 
@@ -376,7 +412,9 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
         except Exception:  # pragma: no cover pylint: disable=broad-except
             self.handleError(record)
 
-    def _send_message(self, msg):
+    def _send_message(self, msg: bytes) -> None:
+        if TYPE_CHECKING:
+            assert self.pusher
         self.pusher.send(msg, flags=zmq.NOBLOCK)
         if self.dropped_messages_count:
             logging.getLogger(__name__).debug(
@@ -385,7 +423,7 @@ class ZMQHandler(ExcInfoOnLogLevelFormatMixin, logging.Handler):
             )
             self.dropped_messages_count = 0
 
-    def close(self):
+    def close(self) -> None:
         """
         Tidy up any resources used by the handler.
         """

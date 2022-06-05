@@ -3,6 +3,8 @@ Salt Factories Event Listener.
 
 A salt events store for all daemons started by salt-factories
 """
+from __future__ import annotations
+
 import copy
 import fnmatch
 import logging
@@ -11,19 +13,38 @@ import weakref
 from collections import deque
 from datetime import datetime
 from datetime import timedelta
+from typing import Any
+from typing import Callable
+from typing import cast
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Sequence
+from typing import Set
+from typing import Tuple
+from typing import TYPE_CHECKING
+from typing import Union
 
 import attr
 import msgpack
 import pytest
 import zmq
+from _pytest.config import Config
+from _pytest.fixtures import SubRequest
+from _pytest.main import Session
 from pytestshellutils.utils import ports
 from pytestshellutils.utils import time
 
+try:
+    from typing import Deque
+except ImportError:
+    from typing_extensions import Deque
 
 log = logging.getLogger(__name__)
 
 
-def _convert_stamp(stamp):
+def _convert_stamp(stamp: str) -> datetime:
     try:
         return datetime.fromisoformat(stamp)
     except AttributeError:  # pragma: no cover
@@ -39,35 +60,36 @@ class Event:
     The ``Event`` class is a container for a salt event which will live on the
     :py:class:`~saltfactories.plugins.event_listener.EventListener` store.
 
-    :keyword str daemon_id:
-        The daemon ID which received this event.
-    :keyword str tag:
-        The event tag of the event.
-    :keyword ~datetime.datetime stamp:
-        When the event occurred
-    :keyword dict data:
-        The event payload, filtered of all of Salt's private keys like ``_stamp`` which prevents proper
-        assertions against it.
-    :keyword dict full_data:
-        The full event payload, as received by the daemon, including all of Salt's private keys.
-    :keyword int,float expire_seconds:
-        The time, in seconds, after which the event should be considered as expired and removed from the store.
+    Arguments:
+        daemon_id:
+            The daemon ID which received this event.
+        tag:
+            The event tag of the event.
+        stamp:
+            When the event occurred
+        data:
+            The event payload, filtered of all of Salt's private keys like ``_stamp`` which prevents proper
+            assertions against it.
+        full_data:
+            The full event payload, as received by the daemon, including all of Salt's private keys.
+        expire_seconds:
+            The time, in seconds, after which the event should be considered as expired and removed from the store.
     """
 
-    daemon_id = attr.ib()
-    tag = attr.ib()
-    stamp = attr.ib(converter=_convert_stamp)
-    data = attr.ib(hash=False)
-    full_data = attr.ib(hash=False)
-    expire_seconds = attr.ib(hash=False)
-    _expire_at = attr.ib(init=False, hash=False)
+    daemon_id: str = attr.ib()
+    tag: str = attr.ib()
+    stamp: datetime = attr.ib(converter=_convert_stamp)
+    data: Dict[str, Any] = attr.ib(hash=False)
+    full_data: Dict[str, Any] = attr.ib(hash=False)
+    expire_seconds: int = attr.ib(hash=False)
+    _expire_at: datetime = attr.ib(init=False, hash=False)
 
     @_expire_at.default
-    def _set_expire_at(self):
+    def _set_expire_at(self) -> datetime:
         return self.stamp + timedelta(seconds=self.expire_seconds)
 
     @property
-    def expired(self):
+    def expired(self) -> bool:
         """
         Property to identify if the event has expired, at which time it should be removed from the store.
         """
@@ -84,11 +106,12 @@ class MatchedEvents:
     The ``MatchedEvents`` class is a container which is returned by
     :py:func:`~saltfactories.plugins.event_listener.EventListener.wait_for_events`.
 
-    :keyword set matches:
-        A :py:class:`set` of :py:class:`~saltfactories.plugins.event_listener.Event` instances that matched.
-    :keyword set missed:
-        A :py:class:`set` of :py:class:`~saltfactories.plugins.event_listener.Event` instances that remained
-        unmatched.
+    Arguments:
+        matches:
+            A :py:class:py:class:`~saltfactories.plugins.event_listener.Event` instances that matched.
+        missed:
+            A :py:class:py:class:`~saltfactories.plugins.event_listener.Event` instances that remained
+            unmatched.
 
     One can also easily iterate through all matched events of this class:
 
@@ -99,17 +122,17 @@ class MatchedEvents:
             print(event.tag)
     """
 
-    matches = attr.ib()
-    missed = attr.ib()
+    matches: Set[Event] = attr.ib()
+    missed: Set[Tuple[str, str]] = attr.ib()
 
     @property
-    def found_all_events(self):
+    def found_all_events(self) -> bool:
         """
         :return bool: :py:class:`True` if all events were matched, or :py:class:`False` otherwise.
         """
         return (not self.missed) is True
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[Event]:
         """
         Iterate through the matched events.
         """
@@ -128,34 +151,36 @@ class EventListener:
         How long, in seconds, should a forwarded event stay in the store, after which, it will be deleted.
     """
 
-    timeout = attr.ib(default=120)
-    address = attr.ib(init=False)
-    store = attr.ib(init=False, repr=False, hash=False)
-    sentinel = attr.ib(init=False, repr=False, hash=False)
-    sentinel_event = attr.ib(init=False, repr=False, hash=False)
-    running_event = attr.ib(init=False, repr=False, hash=False)
-    running_thread = attr.ib(init=False, repr=False, hash=False)
-    cleanup_thread = attr.ib(init=False, repr=False, hash=False)
-    auth_event_handlers = attr.ib(init=False, repr=False, hash=False)
+    timeout: int = attr.ib(default=120)
+    address: str = attr.ib(init=False)
+    store: Deque[Event] = attr.ib(init=False, repr=False, hash=False)
+    sentinel: bytes = attr.ib(init=False, repr=False, hash=False)
+    sentinel_event: threading.Event = attr.ib(init=False, repr=False, hash=False)
+    running_event: threading.Event = attr.ib(init=False, repr=False, hash=False)
+    running_thread: threading.Thread = attr.ib(init=False, repr=False, hash=False)
+    cleanup_thread: threading.Thread = attr.ib(init=False, repr=False, hash=False)
+    auth_event_handlers: weakref.WeakValueDictionary[
+        str, Callable[[Dict[str, Any]], bool]
+    ] = attr.ib(init=False, repr=False, hash=False, factory=weakref.WeakValueDictionary)
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         """
         Post attrs initialization routines.
         """
         self.store = deque(maxlen=10000)
-        self.address = "tcp://127.0.0.1:{}".format(ports.get_unused_localhost_port())
+        self.address = f"tcp://127.0.0.1:{ports.get_unused_localhost_port()}"
         self.running_event = threading.Event()
         self.running_thread = threading.Thread(target=self._run)
         self.cleanup_thread = threading.Thread(target=self._cleanup)
         self.sentinel = msgpack.dumps(None)
         self.sentinel_event = threading.Event()
-        self.auth_event_handlers = weakref.WeakValueDictionary()
 
-    def _run(self):
+    def _run(self) -> None:
         context = zmq.Context()
         puller = context.socket(zmq.PULL)
         log.debug("%s Binding PULL socket to %s", self, self.address)
         puller.bind(self.address)
+        msgpack_kwargs: Dict[str, Any]
         if msgpack.version >= (0, 5, 2):
             msgpack_kwargs = {"raw": False}
         else:  # pragma: no cover
@@ -228,7 +253,7 @@ class EventListener:
         context.term()
         log.debug("%s is no longer running", self)
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         cleanup_at = time.time() + 30
         while self.running_event.is_set():
             if time.time() < cleanup_at:
@@ -249,7 +274,7 @@ class EventListener:
                 self.store.remove(event)
             log.debug("%s store size after cleanup: %s", self, len(self.store))
 
-    def start(self):
+    def start(self) -> None:
         """
         Start the event listener.
         """
@@ -263,7 +288,7 @@ class EventListener:
             raise RuntimeError("Failed to start the event listener")
         self.cleanup_thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop the event listener.
         """
@@ -309,7 +334,11 @@ class EventListener:
                 )
         log.debug("%s stopped", self)
 
-    def get_events(self, patterns, after_time=None):
+    def get_events(
+        self,
+        patterns: Union[List[Tuple[str, str]], Set[Tuple[str, str]]],
+        after_time: Optional[Union[datetime, float]] = None,
+    ) -> Set[Event]:
         """
         Get events from the internal store.
 
@@ -325,6 +354,8 @@ class EventListener:
             after_time = datetime.utcnow()
         elif isinstance(after_time, float):
             after_time = datetime.utcfromtimestamp(after_time)
+        if TYPE_CHECKING:
+            assert after_time
         after_time_iso = after_time.isoformat()
         log.debug(
             "%s is checking for event patterns happening after %s: %s",
@@ -362,7 +393,12 @@ class EventListener:
             )
         return found_events
 
-    def wait_for_events(self, patterns, timeout=30, after_time=None):
+    def wait_for_events(
+        self,
+        patterns: Sequence[Tuple[str, str]],
+        timeout: int = 30,
+        after_time: Optional[datetime] = None,
+    ) -> MatchedEvents:
         """
         Wait for a set of patterns to match or until timeout is reached.
 
@@ -390,34 +426,37 @@ class EventListener:
             after_time_iso,
             set(patterns),
         )
-        found_events = set()
-        patterns = set(patterns)
+        found_events: Set[Event] = set()
+        _patterns = set(patterns)
         timeout_at = time.time() + timeout
+        matched_events = MatchedEvents(matches=found_events, missed=_patterns)
         while True:
-            if not patterns:
-                return True
+            if not _patterns:
+                return matched_events
             for event in copy.copy(self.store):
                 if event.expired:
                     # Too old, carry on
                     continue
                 if event.stamp < after_time:
                     continue
-                for pattern in set(patterns):
+                for pattern in set(_patterns):
                     _daemon_id, _pattern = pattern
                     if event.daemon_id != _daemon_id:
                         continue
                     if fnmatch.fnmatch(event.tag, _pattern):
                         log.debug("%s Found matching pattern: %s", self, pattern)
                         found_events.add(event)
-                        patterns.remove((event.daemon_id, _pattern))
-            if not patterns:
+                        _patterns.remove((event.daemon_id, _pattern))
+            if not _patterns:
                 break
             if time.time() > timeout_at:
                 break
             time.sleep(0.5)
-        return MatchedEvents(matches=found_events, missed=patterns)
+        return matched_events
 
-    def register_auth_event_handler(self, master_id, callback):
+    def register_auth_event_handler(
+        self, master_id: str, callback: Callable[[Dict[str, Any]], bool]
+    ) -> None:
         """
         Register a callback to run for every authentication event, to accept or reject the minion authenticating.
 
@@ -429,7 +468,7 @@ class EventListener:
         """
         self.auth_event_handlers[master_id] = callback
 
-    def unregister_auth_event_handler(self, master_id):
+    def unregister_auth_event_handler(self, master_id: str) -> None:
         """
         Un-register the authentication event callback, if any, for the provided master ID.
 
@@ -440,7 +479,7 @@ class EventListener:
 
 
 @pytest.fixture(scope="session")
-def event_listener(request):
+def event_listener(request: SubRequest) -> EventListener:
     """
     Event listener session scoped fixture.
 
@@ -481,10 +520,12 @@ def event_listener(request):
                 assert event.data["cmd"] == "_minion_event"
                 assert "event.fire" in event.data["data"]
     """
-    return request.config.pluginmanager.get_plugin("saltfactories-event-listener")
+    return cast(
+        EventListener, request.config.pluginmanager.get_plugin("saltfactories-event-listener")
+    )
 
 
-def pytest_configure(config):
+def pytest_configure(config: Config) -> None:
     """
     Configure the plugins.
     """
@@ -492,8 +533,8 @@ def pytest_configure(config):
     config.pluginmanager.register(event_listener, "saltfactories-event-listener")
 
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_sessionstart(session):
+@pytest.hookimpl(tryfirst=True)  # type: ignore[misc]
+def pytest_sessionstart(session: Session) -> None:
     """
     Start the event listener plugin.
     """
@@ -501,8 +542,8 @@ def pytest_sessionstart(session):
     event_listener.start()
 
 
-@pytest.hookimpl(trylast=True)
-def pytest_sessionfinish(session):
+@pytest.hookimpl(trylast=True)  # type: ignore[misc]
+def pytest_sessionfinish(session: Session) -> None:
     """
     Stop the event listener plugin.
     """

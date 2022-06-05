@@ -126,7 +126,7 @@ def pytest_sessionstart(session):
         terminal_reporter.section('Salt Versions Report', sep='-', bold=True)
         terminal_reporter.write(
             '\n'.join(
-                '  {}'.format(line.rstrip()) for line in salt.version.versions_report()
+                '  {0}'.format(line.rstrip()) for line in salt.version.versions_report()
             ).rstrip()
             + '\n'
         )
@@ -154,7 +154,7 @@ def pytest_sessionstart(session):
         terminal_reporter.section('System Grains Report', sep='-')
         terminal_reporter.write(
             '\n'.join(
-                '  {}'.format(line.rstrip())
+                '  {0}'.format(line.rstrip())
                 for line in grains_output_file.read().splitlines()
             ).rstrip()
             + '\n'

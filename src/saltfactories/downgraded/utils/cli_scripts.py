@@ -6,6 +6,9 @@ import logging
 import pathlib
 import stat
 import textwrap
+from typing import Optional
+from typing import TYPE_CHECKING
+from typing import Union
 import pytest
 
 log = logging.getLogger(__name__)
@@ -148,12 +151,12 @@ SCRIPT_TEMPLATES = {
 
 
 def generate_script(
-    bin_dir,
-    script_name,
-    code_dir=None,
-    inject_coverage=False,
-    inject_sitecustomize=False,
-):
+    bin_dir: Union[pathlib.Path, str],
+    script_name: str,
+    code_dir: Optional[Union[pathlib.Path, str]] = None,
+    inject_coverage: bool = False,
+    inject_sitecustomize: bool = False,
+) -> str:
     """
     Generate a CLI script.
 
@@ -174,6 +177,8 @@ def generate_script(
             script_template = SCRIPT_TEMPLATES.get(script_name, None)
             if script_template is None:
                 script_template = SCRIPT_TEMPLATES.get('common', None)
+            if TYPE_CHECKING:
+                assert script_template
             script_contents = (
                 textwrap.dedent(
                     """

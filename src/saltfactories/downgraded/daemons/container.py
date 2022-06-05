@@ -216,7 +216,7 @@ class Container(BaseFactory):
         try:
             docker_client = docker.from_env()
         except DockerException as exc:
-            message = 'Failed to instantiate the docker client: {}'.format(exc)
+            message = 'Failed to instantiate the docker client: {0}'.format(exc)
             if self.skip_if_docker_client_not_connectable:
                 raise pytest.skip.Exception(message, **exc_kwargs) from exc
             else:
@@ -339,7 +339,7 @@ class Container(BaseFactory):
         Returns a human readable name for the factory.
         """
         if self.display_name is None:
-            self.display_name = '{}(id={!r})'.format(self.__class__.__name__, self.id)
+            self.display_name = '{0}(id={1})'.format(self.__class__.__name__, self.id)
         return super().get_display_name()
 
     def start(self, *command, max_start_attempts=None, start_timeout=None):
@@ -560,7 +560,7 @@ class Container(BaseFactory):
         log.debug('Container Ports for %s: %s', self, ports)
         if not ports:
             return None
-        container_binding = '{}/{}'.format(port, protocol)
+        container_binding = '{0}/{1}'.format(port, protocol)
         if container_binding not in ports:
             return None
         host_port_bindings = ports[container_binding]
@@ -621,7 +621,7 @@ class Container(BaseFactory):
                 return 'The docker client failed to get a ping response from the docker daemon'
             return True
         except (APIError, RequestsConnectionError, PyWinTypesError) as exc:
-            return 'The docker client failed to ping the docker server: {}'.format(exc)
+            return 'The docker client failed to ping the docker server: {0}'.format(exc)
 
     def run_container_start_checks(self, started_at, timeout_at):
         """
@@ -636,7 +636,7 @@ class Container(BaseFactory):
         log.debug('%s is running container start checks', self)
         while time.time() <= timeout_at:
             if not self.is_running():
-                raise FactoryNotStarted('{} is no longer running'.format(self))
+                raise FactoryNotStarted('{0} is no longer running'.format(self))
             if not start_check_callbacks:
                 break
             start_check = start_check_callbacks[0]
@@ -679,7 +679,7 @@ class Container(BaseFactory):
         check_ports = set(check_ports_mapping.values())
         while time.time() <= timeout_at:
             if not self.is_running():
-                raise FactoryNotStarted('{} is no longer running'.format(self))
+                raise FactoryNotStarted('{0} is no longer running'.format(self))
             if not check_ports:
                 break
             check_ports -= ports.get_connectable_ports(check_ports)

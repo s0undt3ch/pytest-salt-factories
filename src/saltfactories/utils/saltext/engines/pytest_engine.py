@@ -1,15 +1,21 @@
-# -*- coding: utf-8 -*-
 """
 Salt Factories Engine For Salt.
 
 Simple salt engine which will setup a socket to accept connections allowing us to know
 when a daemon is up and running
 """
+from __future__ import annotations
+
 import atexit
 import datetime
 import logging
 import threading
 from collections.abc import MutableMapping
+from typing import Any
+from typing import Dict
+from typing import Tuple
+from typing import TYPE_CHECKING
+from typing import Union
 
 try:
     import msgpack
@@ -36,13 +42,15 @@ try:
 except ImportError:
     CaseInsensitiveDict = None
 
+if TYPE_CHECKING:
+    __opts__: Dict[str, Any]
 
 log = logging.getLogger(__name__)
 
 __virtualname__ = "pytest"
 
 
-def __virtual__():
+def __virtual__() -> Union[Tuple[bool, str], bool]:
     if HAS_MSGPACK is False:
         return False, "msgpack was not importable. Please install msgpack."
     if HAS_ZMQ is False:
@@ -50,17 +58,17 @@ def __virtual__():
     if "__role" not in __opts__:
         return False, "The required '__role' key could not be found in the options dictionary"
     role = __opts__["__role"]
-    pytest_key = "pytest-{}".format(role)
+    pytest_key = f"pytest-{role}"
     if pytest_key not in __opts__:
-        return False, "No '{}' key in opts dictionary".format(pytest_key)
+        return False, f"No '{pytest_key}' key in opts dictionary"
 
     pytest_config = __opts__[pytest_key]
     if "returner_address" not in pytest_config:
-        return False, "No 'returner_address' key in opts['{}'] dictionary".format(pytest_key)
+        return False, f"No 'returner_address' key in opts['{pytest_key}'] dictionary"
     return True
 
 
-def start():
+def start() -> None:
     """
     Method to start the engine.
     """
@@ -73,7 +81,7 @@ def start():
         raise
 
 
-def ext_type_encoder(obj):
+def ext_type_encoder(obj: Any) -> Any:
     """
     Convert any types that msgpack cannot handle on it's own.
     """
@@ -106,14 +114,14 @@ class PyTestEventForwardEngine:
 
     __slots__ = ("opts", "id", "role", "returner_address", "running_event")
 
-    def __init__(self, opts):
+    def __init__(self, opts: Dict[str, Any]) -> None:
         self.opts = opts
-        self.id = self.opts["id"]
-        self.role = self.opts["__role"]
-        self.returner_address = self.opts["pytest-{}".format(self.role)]["returner_address"]
+        self.id: str = self.opts["id"]
+        self.role: str = self.opts["__role"]
+        self.returner_address: str = self.opts[f"pytest-{self.role}"]["returner_address"]
         self.running_event = threading.Event()
 
-    def __repr__(self):  # noqa: D105
+    def __repr__(self) -> str:  # noqa: D105
         return "<{} role={!r} id={!r}, returner_address={!r} running={!r}>".format(
             self.__class__.__name__,
             self.role,
@@ -122,7 +130,7 @@ class PyTestEventForwardEngine:
             self.running_event.is_set(),
         )
 
-    def start(self):
+    def start(self) -> None:
         """
         Start the engine.
         """
@@ -146,7 +154,7 @@ class PyTestEventForwardEngine:
                 listen=True,
             ) as eventbus:
                 if self.role == "master":
-                    event_tag = "salt/master/{}/start".format(self.id)
+                    event_tag = f"salt/master/{self.id}/start"
                     log.info("%s firing event on engine start. Tag: %s", self, event_tag)
                     load = {"id": self.id, "tag": event_tag, "data": {}}
                     eventbus.fire_event(load, event_tag)
@@ -178,7 +186,7 @@ class PyTestEventForwardEngine:
             if not context.closed:
                 context.term()
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop the engine.
         """

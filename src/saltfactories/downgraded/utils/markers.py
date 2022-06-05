@@ -32,7 +32,7 @@ def check_required_loader_attributes(loader_instance, loader_attr, required_item
     required_salt_items = set(required_items)
     available_items = list(getattr(loader_instance, loader_attr))
     not_available_items = set()
-    name = '__not_available_{items}s__'.format(items=loader_attr)
+    name = '__not_available_{0}s__'.format(loader_attr)
     if not hasattr(loader_instance, name):
         cached_not_available_items = set()
         setattr(loader_instance, name, cached_not_available_items)

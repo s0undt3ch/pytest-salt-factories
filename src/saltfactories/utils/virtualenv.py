@@ -1,6 +1,8 @@
 """
 VirtualEnv helper class.
 """
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -10,8 +12,15 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from pathlib import Path
+from typing import Any
+from typing import cast
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import attr
+from pytestshellutils.customtypes import EnvironDict
 from pytestshellutils.exceptions import ProcessFailed
 from pytestshellutils.utils.processes import ProcessResult
 from pytestskipmarkers.utils import platform
@@ -46,37 +55,37 @@ class VirtualEnv:
                 assert "pep8" in venv.get_installed_packages()
     """
 
-    venv_dir = attr.ib(converter=cast_to_pathlib_path)
-    venv_create_args = attr.ib(default=attr.Factory(list))
-    env = attr.ib(default=None)
-    cwd = attr.ib(default=None)
-    environ = attr.ib(init=False, repr=False)
-    venv_python = attr.ib(init=False, repr=False)
-    venv_bin_dir = attr.ib(init=False, repr=False)
+    venv_dir: Path = attr.ib(converter=cast_to_pathlib_path)
+    venv_create_args: List[str] = attr.ib(default=attr.Factory(list))
+    env: Optional[EnvironDict] = attr.ib(default=None)
+    cwd: Path = attr.ib(default=None)
+    environ: EnvironDict = attr.ib(init=False, repr=False)
+    venv_python: str = attr.ib(init=False, repr=False)
+    venv_bin_dir: Path = attr.ib(init=False, repr=False)
 
     @venv_dir.default
-    def _default_venv_dir(self):
+    def _default_venv_dir(self) -> pathlib.Path:
         return pathlib.Path(tempfile.mkdtemp(dir=tempfile.gettempdir()))
 
     @environ.default
-    def _default_environ(self):
-        environ = os.environ.copy()
+    def _default_environ(self) -> EnvironDict:
+        environ = cast(EnvironDict, os.environ.copy())
         if self.env:
             environ.update(self.env)
         return environ
 
     @venv_python.default
-    def _default_venv_python(self):
+    def _default_venv_python(self) -> str:
         # Once we drop Py3.5 we can stop casting to string
         if platform.is_windows():
             return str(self.venv_dir / "Scripts" / "python.exe")
         return str(self.venv_dir / "bin" / "python")
 
     @venv_bin_dir.default
-    def _default_venv_bin_dir(self):
+    def _default_venv_bin_dir(self) -> pathlib.Path:
         return pathlib.Path(self.venv_python).parent
 
-    def __enter__(self):
+    def __enter__(self) -> VirtualEnv:
         """
         Use as a context manager.
         """
@@ -86,19 +95,19 @@ class VirtualEnv:
             raise AssertionError("Failed to create virtualenv") from exc
         return self
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: Any) -> None:
         """
         Exit the context manager.
         """
         shutil.rmtree(str(self.venv_dir), ignore_errors=True)
 
-    def install(self, *args, **kwargs):
+    def install(self, *args: str, **kwargs: Any) -> ProcessResult:
         """
         Install a python package into the virtualenv.
         """
         return self.run(self.venv_python, "-m", "pip", "install", *args, **kwargs)
 
-    def run(self, *args, **kwargs):
+    def run(self, *args: str, **kwargs: Any) -> ProcessResult:
         """
         Run a shell command.
         """
@@ -124,7 +133,7 @@ class VirtualEnv:
         return ret
 
     @staticmethod
-    def get_real_python():
+    def get_real_python() -> str:
         """
         Return the path to the real python executable.
 
@@ -160,7 +169,7 @@ class VirtualEnv:
         except AttributeError:
             return sys.executable
 
-    def run_code(self, code_string, **kwargs):
+    def run_code(self, code_string: str, **kwargs: Any) -> ProcessResult:
         """
         Run python code using the virtualenv python environment.
 
@@ -177,20 +186,20 @@ class VirtualEnv:
         log.debug("Code to run passed to python:\n>>>>>>>>>>\n%s\n<<<<<<<<<<", code_string)
         return self.run(str(self.venv_python), "-c", code_string, **kwargs)
 
-    def get_installed_packages(self):
+    def get_installed_packages(self) -> Dict[str, str]:
         """
         Return installed packages in the virtualenv.
 
         Get a dictionary of the installed packages where the keys are the package
         names and the values their versions
         """
-        data = {}
+        data: Dict[str, str] = {}
         ret = self.run(str(self.venv_python), "-m", "pip", "list", "--format", "json")
         for pkginfo in json.loads(ret.stdout):
             data[pkginfo["name"]] = pkginfo["version"]
         return data
 
-    def _create_virtualenv(self):
+    def _create_virtualenv(self) -> None:
         args = [
             self.get_real_python(),
             "-m",
@@ -202,7 +211,7 @@ class VirtualEnv:
                 passed_python = True
             args.append(arg)
         if passed_python is False:
-            args.append("--python={}".format(self.get_real_python()))
+            args.append(f"--python={self.get_real_python()}")
         args.append(str(self.venv_dir))
         # We pass CWD because run defaults to the venv_dir, which, at this stage
         # is not yet created

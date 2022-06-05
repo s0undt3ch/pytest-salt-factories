@@ -1,19 +1,23 @@
 """
 Salt Factories PyTest plugin interface.
 """
+from __future__ import annotations
+
 import logging
 import os
 import tempfile
+from typing import Any
 
 import pytest
 import pytestskipmarkers.utils.platform
+from _pytest.reports import TestReport
 
 import saltfactories.utils.tempfiles
 
 log = logging.getLogger(__name__)
 
 
-def pytest_tempdir_temproot():
+def pytest_tempdir_temproot() -> str:
     """
     Define the temp directory to use as a base for the test run.
     """
@@ -30,14 +34,14 @@ def pytest_tempdir_temproot():
     return os.path.abspath(os.path.realpath(tempdir))
 
 
-def pytest_tempdir_basename():
+def pytest_tempdir_basename() -> str:
     """
     Return the temporary directory basename for the salt test suite.
     """
     return "saltfactories"
 
 
-def pytest_runtest_logstart(nodeid):
+def pytest_runtest_logstart(nodeid: str) -> None:
     """
     Signal the start of running a single test item.
 
@@ -50,7 +54,7 @@ def pytest_runtest_logstart(nodeid):
     log.debug(">>>>>>> START %s >>>>>>>", nodeid)
 
 
-def pytest_runtest_logfinish(nodeid):
+def pytest_runtest_logfinish(nodeid: str) -> None:
     """
     Signal the complete finish of running a single test item.
 
@@ -63,7 +67,7 @@ def pytest_runtest_logfinish(nodeid):
     log.debug("<<<<<<< END %s <<<<<<<", nodeid)
 
 
-def pytest_runtest_logreport(report):
+def pytest_runtest_logreport(report: TestReport) -> None:
     """
     Log the test running.
 
@@ -75,12 +79,18 @@ def pytest_runtest_logreport(report):
         log.debug("======= %s %s ========", report.outcome.upper(), report.nodeid)
 
 
-@pytest.hookimpl(trylast=True)
-def pytest_load_initial_conftests(*_):
+@pytest.hookimpl(trylast=True)  # type: ignore[misc]
+def pytest_load_initial_conftests(*_: Any) -> None:
     """
     Register our pytest helpers.
     """
-    if "temp_directory" not in pytest.helpers:
-        pytest.helpers.register(saltfactories.utils.tempfiles.temp_directory, name="temp_directory")
-    if "temp_file" not in pytest.helpers:
-        pytest.helpers.register(saltfactories.utils.tempfiles.temp_file, name="temp_file")
+    if "temp_directory" not in pytest.helpers:  # type: ignore[operator]
+        pytest.helpers.register(  # type: ignore[attr-defined]
+            saltfactories.utils.tempfiles.temp_directory,
+            name="temp_directory",
+        )
+    if "temp_file" not in pytest.helpers:  # type: ignore[operator]
+        pytest.helpers.register(  # type: ignore[attr-defined]
+            saltfactories.utils.tempfiles.temp_file,
+            name="temp_file",
+        )

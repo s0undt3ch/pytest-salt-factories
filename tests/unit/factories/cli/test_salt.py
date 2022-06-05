@@ -3,14 +3,16 @@ Test the ``salt`` CLI functionality.
 """
 import shutil
 import sys
+from pathlib import Path
 
 import pytest
+from _pytest.pytester import Pytester
 
 from saltfactories.cli.salt import Salt
 
 
 @pytest.fixture
-def config_dir(pytester):
+def config_dir(pytester: Pytester) -> Path:
     _conf_dir = pytester.mkdir("conf")
     try:
         yield _conf_dir
@@ -19,12 +21,12 @@ def config_dir(pytester):
 
 
 @pytest.fixture
-def minion_id():
+def minion_id() -> str:
     return "test-minion-id"
 
 
 @pytest.fixture
-def config_file(config_dir, minion_id):
+def config_file(config_dir: Path, minion_id: str):
     config_file = str(config_dir / "config")
     with open(config_file, "w") as wfh:
         wfh.write("id: {}\n".format(minion_id))
@@ -32,7 +34,7 @@ def config_file(config_dir, minion_id):
 
 
 @pytest.fixture
-def cli_script_name(pytester):
+def cli_script_name(pytester: Pytester) -> str:
     py_file = pytester.makepyfile(
         """
         print("This would be the CLI script")
@@ -44,7 +46,9 @@ def cli_script_name(pytester):
         py_file.unlink()
 
 
-def test_missing_minion_id_raises_exception(minion_id, config_dir, config_file, cli_script_name):
+def test_missing_minion_id_raises_exception(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     args = ["test.ping"]
     proc = Salt(script_name=cli_script_name, config=config)
@@ -57,8 +61,8 @@ def test_missing_minion_id_raises_exception(minion_id, config_dir, config_file, 
 
 @pytest.mark.parametrize("flag", ["-V", "--version", "--versions-report", "--help"])
 def test_missing_minion_id_does_not_raise_exception(
-    minion_id, config_dir, config_file, cli_script_name, flag
-):
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str, flag: str
+) -> None:
     """
     Assert that certain flag, which just output something and then exit, don't raise an exception
     """
@@ -75,7 +79,9 @@ def test_missing_minion_id_does_not_raise_exception(
         )
 
 
-def test_default_timeout_config(minion_id, config_dir, config_file, cli_script_name):
+def test_default_timeout_config(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     """
     Assert against the default timeout provided in the config.
     """
@@ -98,7 +104,9 @@ def test_default_timeout_config(minion_id, config_dir, config_file, cli_script_n
     assert cmdline == expected
 
 
-def test_default_timeout_construct(minion_id, config_dir, config_file, cli_script_name):
+def test_default_timeout_construct(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     """
     Assert against the default timeout provided in the config.
     """

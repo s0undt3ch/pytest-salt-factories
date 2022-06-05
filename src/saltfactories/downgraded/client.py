@@ -7,6 +7,12 @@ Salt Client in-process implementation.
 from __future__ import generator_stop
 import logging
 import re
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Pattern
+from typing import Tuple
+from typing import Union
 import attr
 import pytest
 import salt.client
@@ -28,7 +34,7 @@ class LocalClient:
     __client = attr.ib(init=False, repr=False)
 
     @functions_known_to_return_none.default
-    def _set_functions_known_to_return_none(self):
+    def _set_functions_known_to_return_none(self) -> Tuple[str, ...]:
         return (
             'data.get',
             'file.chown',
@@ -39,10 +45,17 @@ class LocalClient:
         )
 
     @__client.default
-    def _set_client(self):
+    def _set_client(self) -> salt.client.LocalClient:
         return salt.client.get_local_client(mopts=self.master_config)
 
-    def run(self, function, *args, minion_tgt='minion', timeout=300, **kwargs):
+    def run(
+        self,
+        function: str,
+        *args: Any,
+        minion_tgt: str = 'minion',
+        timeout: int = 300,
+        **kwargs: Any
+    ) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Run a single salt function.
 
@@ -63,7 +76,7 @@ class LocalClient:
             )
         elif (
             ret[minion_tgt] is None
-            and function not in self.__functions_known_to_return_none
+            and function not in self.functions_known_to_return_none
         ):
             pytest.fail(
                 "WARNING(SHOULD NOT HAPPEN #1935): Failed to get '{}' from the minion '{}'. Command output: {}".format(
@@ -73,7 +86,9 @@ class LocalClient:
         ret[minion_tgt] = self._check_state_return(ret[minion_tgt])
         return ret[minion_tgt]
 
-    def _check_state_return(self, ret):
+    def _check_state_return(
+        self, ret: Union[List[Dict[str, Any]], Dict[str, Any]]
+    ) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         if isinstance(ret, dict):
             return ret
         if isinstance(ret, list):
@@ -93,5 +108,5 @@ class LocalClient:
                 msg = "A running state.single was found causing a state lock. Job details: '{}'  Killing Job Returned: '{}'".format(
                     job_data, job_kill
                 )
-                ret.append('[TEST SUITE ENFORCED]{}[/TEST SUITE ENFORCED]'.format(msg))
+                ret.append('[TEST SUITE ENFORCED]{0}[/TEST SUITE ENFORCED]'.format(msg))
         return ret

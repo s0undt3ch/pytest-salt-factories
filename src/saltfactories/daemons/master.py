@@ -4,6 +4,8 @@ Salt Master Factory.
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import copy
 import pathlib
 import shutil
@@ -146,7 +148,7 @@ class SaltMaster(SaltDaemon):
                 "max_open_files": 10240,
                 "pytest-master": {
                     "master-id": master_of_masters_id,
-                    "log": {"prefix": "{}(id={!r})".format(cls.__name__, master_id)},
+                    "log": {"prefix": f"{cls.__name__}(id={master_id!r})"},
                 },
             }
         else:
@@ -214,7 +216,7 @@ class SaltMaster(SaltDaemon):
                 "enable_legacy_startup_events": False,
                 "pytest-master": {
                     "master-id": master_of_masters_id,
-                    "log": {"prefix": "{}(id={!r})".format(cls.__name__, master_id)},
+                    "log": {"prefix": f"{cls.__name__}(id={master_id!r})"},
                 },
             }
         # Merge in the initial default options with the internal _defaults
@@ -341,7 +343,7 @@ class SaltMaster(SaltDaemon):
         defaults=None,
         overrides=None,
         factory_class=cli.cloud.SaltCloud,
-        **factory_class_kwargs
+        **factory_class_kwargs,
     ):
         """
         Return a salt-cloud CLI instance.
@@ -381,7 +383,7 @@ class SaltMaster(SaltDaemon):
             script_name=script_path,
             config=config,
             system_install=self.factories_manager.system_install,
-            **factory_class_kwargs
+            **factory_class_kwargs,
         )
 
     def salt_cli(self, factory_class=cli.salt.Salt, **factory_class_kwargs):
@@ -402,7 +404,7 @@ class SaltMaster(SaltDaemon):
             script_name=script_path,
             config=self.config.copy(),
             system_install=self.factories_manager.system_install,
-            **factory_class_kwargs
+            **factory_class_kwargs,
         )
 
     def salt_cp_cli(self, factory_class=cli.cp.SaltCp, **factory_class_kwargs):
@@ -423,7 +425,7 @@ class SaltMaster(SaltDaemon):
             script_name=script_path,
             config=self.config.copy(),
             system_install=self.factories_manager.system_install,
-            **factory_class_kwargs
+            **factory_class_kwargs,
         )
 
     def salt_key_cli(self, factory_class=cli.key.SaltKey, **factory_class_kwargs):
@@ -444,7 +446,7 @@ class SaltMaster(SaltDaemon):
             script_name=script_path,
             config=self.config.copy(),
             system_install=self.factories_manager.system_install,
-            **factory_class_kwargs
+            **factory_class_kwargs,
         )
 
     def salt_run_cli(self, factory_class=cli.run.SaltRun, **factory_class_kwargs):
@@ -465,7 +467,7 @@ class SaltMaster(SaltDaemon):
             script_name=script_path,
             config=self.config.copy(),
             system_install=self.factories_manager.system_install,
-            **factory_class_kwargs
+            **factory_class_kwargs,
         )
 
     def salt_spm_cli(self, factory_class=cli.spm.Spm, **factory_class_kwargs):
@@ -486,7 +488,7 @@ class SaltMaster(SaltDaemon):
             script_name=script_path,
             config=self.config.copy(),
             system_install=self.factories_manager.system_install,
-            **factory_class_kwargs
+            **factory_class_kwargs,
         )
 
     def salt_ssh_cli(
@@ -496,7 +498,7 @@ class SaltMaster(SaltDaemon):
         target_host=None,
         client_key=None,
         ssh_user=None,
-        **factory_class_kwargs
+        **factory_class_kwargs,
     ):
         """
         Return a `salt-ssh` CLI process for this master instance.
@@ -529,7 +531,7 @@ class SaltMaster(SaltDaemon):
             client_key=client_key,
             ssh_user=ssh_user or running_username(),
             system_install=self.factories_manager.system_install,
-            **factory_class_kwargs
+            **factory_class_kwargs,
         )
 
     def salt_client(

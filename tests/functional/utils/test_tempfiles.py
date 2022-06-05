@@ -1,14 +1,21 @@
+from __future__ import annotations
+
 import pathlib
 import shutil
 import tempfile
+from typing import Type
+from typing import Union
 
 import pytest
 
 from saltfactories.utils import tempfiles
+from saltfactories.utils.tempfiles import SaltEnvs
+from saltfactories.utils.tempfiles import SaltPillarTree
+from saltfactories.utils.tempfiles import SaltStateTree
 
 
 @pytest.mark.parametrize("name", ["foo", "foo/bar"])
-def test_temp_directory_with_name(name):
+def test_temp_directory_with_name(name: str) -> None:
     try:
         expected_path = pathlib.Path(tempfile.gettempdir()) / name
         assert expected_path.is_dir() is False
@@ -20,7 +27,7 @@ def test_temp_directory_with_name(name):
         shutil.rmtree(str(expected_path), ignore_errors=True)
 
 
-def test_temp_directory_without_name():
+def test_temp_directory_without_name() -> None:
     try:
         expected_parent_path = pathlib.Path(tempfile.gettempdir())
         with tempfiles.temp_directory() as tpath:
@@ -31,7 +38,7 @@ def test_temp_directory_without_name():
         shutil.rmtree(str(tpath), ignore_errors=True)
 
 
-def test_temp_directory_with_basepath(tmp_path):
+def test_temp_directory_with_basepath(tmp_path: pathlib.Path) -> None:
     with tempfiles.temp_directory(basepath=tmp_path) as tpath:
         assert tpath.is_dir()
         assert str(tpath.parent) == str(tmp_path)
@@ -40,7 +47,7 @@ def test_temp_directory_with_basepath(tmp_path):
 
 
 @pytest.mark.parametrize("name", ["foo.txt", "foo/bar.txt"])
-def test_temp_file_with_name(tmp_path, name):
+def test_temp_file_with_name(tmp_path: pathlib.Path, name: str) -> None:
     expected_path = tmp_path / name
     assert expected_path.is_file() is False
     with tempfiles.temp_file(name=name, directory=tmp_path) as tpath:
@@ -49,7 +56,7 @@ def test_temp_file_with_name(tmp_path, name):
     assert expected_path.is_file() is False
 
 
-def test_temp_file_without_name(tmp_path):
+def test_temp_file_without_name(tmp_path: pathlib.Path) -> None:
     expected_parent_path = tmp_path
     with tempfiles.temp_file(directory=tmp_path) as tpath:
         assert tpath.is_file()
@@ -58,7 +65,7 @@ def test_temp_file_without_name(tmp_path):
 
 
 @pytest.mark.parametrize("name", ["foo.txt", "foo/bar.txt"])
-def test_temp_file_with_name_no_directory(name):
+def test_temp_file_with_name_no_directory(name: str) -> None:
     try:
         expected_path = pathlib.Path(tempfile.gettempdir()) / name
         assert expected_path.is_file() is False
@@ -70,7 +77,7 @@ def test_temp_file_with_name_no_directory(name):
         shutil.rmtree(str(expected_path), ignore_errors=True)
 
 
-def test_temp_file_without_name_no_directory():
+def test_temp_file_without_name_no_directory() -> None:
     try:
         expected_parent_path = pathlib.Path(tempfile.gettempdir())
         with tempfiles.temp_file() as tpath:
@@ -81,7 +88,7 @@ def test_temp_file_without_name_no_directory():
         shutil.rmtree(str(tpath), ignore_errors=True)
 
 
-def test_temp_file_does_not_delete_non_empty_directories(tmp_path):
+def test_temp_file_does_not_delete_non_empty_directories(tmp_path: pathlib.Path) -> None:
     expected_parent_path = tmp_path
     level1_path = expected_parent_path / "level1"
     level2_path = level1_path / "level2"
@@ -104,7 +111,7 @@ def test_temp_file_does_not_delete_non_empty_directories(tmp_path):
 
 
 @pytest.mark.parametrize("strip_first_newline", [True, False])
-def test_temp_file_contents(strip_first_newline):
+def test_temp_file_contents(strip_first_newline: bool) -> None:
     contents = """
      These are the contents, first line
       Second line
@@ -118,7 +125,7 @@ def test_temp_file_contents(strip_first_newline):
         assert tpath.read_text() == expected_contents
 
 
-def test_saltenvs_temp_file(tmp_path):
+def test_saltenvs_temp_file(tmp_path: pathlib.Path) -> None:
     with tempfiles.temp_directory("state-tree", basepath=tmp_path) as state_tree_path:
         with tempfiles.temp_directory(
             "base1", basepath=state_tree_path
@@ -156,7 +163,10 @@ def test_saltenvs_temp_file(tmp_path):
         tempfiles.SaltStateTree,
     ),
 )
-def test_saltenvs_as_dict(tmp_path, klass):
+def test_saltenvs_as_dict(
+    tmp_path: pathlib.Path,
+    klass: Union[Type[SaltPillarTree], Type[SaltEnvs], Type[SaltStateTree]],
+) -> None:
     with tempfiles.temp_directory("tree", basepath=tmp_path) as tree_path:
         with tempfiles.temp_directory(
             "base1", basepath=tree_path

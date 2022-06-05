@@ -62,7 +62,6 @@ class FactoriesManager:
             can be written down to disk.
         start_timeout:
             The amount of time, in seconds, to wait, until a subprocess is considered as not started.
-        stats_processes: pytestsysstats.plugin.StatsProcesses
         stats_processes:
             This will be an :py:class:`pytestsysstats.plugin.StatsProcesses` class instantiated on the
             :py:func:`~_pytest.hookspec.pytest_sessionstart` hook accessible as a session scoped `stats_processes`
@@ -170,7 +169,7 @@ class FactoriesManager:
         config.setdefault('user', running_username())
         if not config['user']:
             config.pop('user')
-        pytest_key = 'pytest-{}'.format(role)
+        pytest_key = 'pytest-{0}'.format(role)
         if pytest_key not in config:
             config[pytest_key] = {}
         pytest_config = config[pytest_key]
@@ -684,7 +683,7 @@ class FactoriesManager:
         while True:
             if not root_dir.is_dir():
                 break
-            root_dir = self.root_dir / '{}_{}'.format(daemon_id, counter)
+            root_dir = self.root_dir / '{0}_{1}'.format(daemon_id, counter)
             counter += 1
         root_dir.mkdir(parents=True, exist_ok=True)
         return root_dir

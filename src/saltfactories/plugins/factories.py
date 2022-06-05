@@ -4,6 +4,8 @@ Salt Daemon Factories PyTest Plugin.
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import logging
 import os
 import pprint

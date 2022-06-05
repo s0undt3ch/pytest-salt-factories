@@ -69,7 +69,7 @@ class SaltSyndic(SaltDaemon):
                 'syndic_log_level_logfile': 'debug',
                 'pytest-syndic': {
                     'master-id': master_of_masters_id,
-                    'log': {'prefix': '{}(id={!r})'.format(cls.__name__, syndic_id)},
+                    'log': {'prefix': '{0}(id={1})'.format(cls.__name__, syndic_id)},
                 },
             }
         else:
@@ -93,7 +93,7 @@ class SaltSyndic(SaltDaemon):
                 'enable_legacy_startup_events': False,
                 'pytest-syndic': {
                     'master-id': master_of_masters_id,
-                    'log': {'prefix': '{}(id={!r})'.format(cls.__name__, syndic_id)},
+                    'log': {'prefix': '{0}(id={1})'.format(cls.__name__, syndic_id)},
                 },
             }
         salt.utils.dictupdate.update(defaults, _defaults, merge_lists=True)

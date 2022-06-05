@@ -1,4 +1,6 @@
 # pylint: disable=wildcard-import,unused-wildcard-import
+from __future__ import annotations
+
 from pytestshellutils.utils.ports import *
 
 from saltfactories.utils import warn_until

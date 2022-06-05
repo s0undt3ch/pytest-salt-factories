@@ -4,6 +4,8 @@ Utility functions.
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import inspect
 import pathlib
 import random
@@ -11,16 +13,25 @@ import string
 import sys
 import warnings
 from functools import lru_cache
+from pathlib import Path
+from typing import cast
+from typing import List
 from typing import Optional
 from typing import Type
+from typing import TYPE_CHECKING
+from typing import Union
 
 import packaging.version
 import salt.utils.user
+from py._path.local import LocalPath
+from pytest_tempdir.plugin import TempDir
 
 import saltfactories
 
 
-def random_string(prefix, size=6, uppercase=True, lowercase=True, digits=True):
+def random_string(
+    prefix: str, size: int = 6, uppercase: bool = True, lowercase: bool = True, digits: bool = True
+) -> str:
     """
     Generates a random string.
 
@@ -33,7 +44,7 @@ def random_string(prefix, size=6, uppercase=True, lowercase=True, digits=True):
     """
     if not any([uppercase, lowercase, digits]):
         raise RuntimeError("At least one of 'uppercase', 'lowercase' or 'digits' needs to be true")
-    choices = []
+    choices: List[str] = []
     if uppercase:
         choices.extend(string.ascii_uppercase)
     if lowercase:
@@ -45,20 +56,22 @@ def random_string(prefix, size=6, uppercase=True, lowercase=True, digits=True):
 
 
 @lru_cache(maxsize=1)
-def running_username():
+def running_username() -> str:
     """
     Return the username that is running the code.
     """
-    return salt.utils.user.get_user()
+    return cast(str, salt.utils.user.get_user())
 
 
-def cast_to_pathlib_path(value):
+def cast_to_pathlib_path(value: Union[str, LocalPath, Path, TempDir]) -> Path:
     """
     Cast the passed value to an instance of ``pathlib.Path``.
     """
     if isinstance(value, pathlib.Path):
         return value
     try:
+        if TYPE_CHECKING:
+            assert isinstance(value, LocalPath)
         return pathlib.Path(value.strpath)
     except AttributeError:
         return pathlib.Path(str(value))

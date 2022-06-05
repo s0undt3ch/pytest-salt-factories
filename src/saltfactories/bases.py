@@ -4,14 +4,26 @@ Factories base classes.
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import atexit
 import contextlib
 import json
 import logging
 import os
+import pathlib
 import pprint
 import sys
+from typing import Any
+from typing import cast
+from typing import Dict
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Type
 from typing import TYPE_CHECKING
+from typing import Union
 
 import attr
 import psutil
@@ -19,6 +31,7 @@ import pytest
 import salt.utils.files
 import salt.utils.verify
 import salt.utils.yaml
+from pytestshellutils.customtypes import EnvironDict
 from pytestshellutils.exceptions import FactoryNotStarted
 from pytestshellutils.shell import Daemon
 from pytestshellutils.shell import DaemonImpl
@@ -33,6 +46,10 @@ from salt.utils.immutabletypes import freeze
 from saltfactories.utils import running_username
 
 log = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from pytestshellutils.manager import FactoriesManager
+    from saltfactories.plugins.event_listener import EventListener
 
 # If any --timeout is passed on the CLI, we'll feed it to salt,
 # and will increase it internally as a hard timeout by the following amount
@@ -54,35 +71,37 @@ class SaltMixin:
             salt system paths apply.
     """
 
-    id = attr.ib(default=None, init=False)
-    config = attr.ib(repr=False)
-    config_dir = attr.ib(init=False, default=None)
-    config_file = attr.ib(init=False, default=None)
-    python_executable = attr.ib(default=None)
-    system_install = attr.ib(repr=False, default=False)
-    display_name = attr.ib(init=False, default=None)
+    id: str = attr.ib(default=None, init=False)
+    config: Dict[str, Any] = attr.ib(repr=False)
+    config_dir: Optional[str] = attr.ib(init=False, default=None)
+    config_file: Optional[str] = attr.ib(init=False, default=None)
+    python_executable: Optional[str] = attr.ib(default=None)
+    system_install: bool = attr.ib(repr=False, default=False)
+    display_name: Optional[str] = attr.ib(init=False, default=None)
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         """
         Post attrs initialization routines.
         """
         if self.python_executable is None and self.system_install is False:
             self.python_executable = sys.executable
         # We really do not want buffered output
-        self.environ.setdefault("PYTHONUNBUFFERED", "1")
+        self.environ.setdefault("PYTHONUNBUFFERED", "1")  # type: ignore[attr-defined]
         # Don't write .pyc files or create them in __pycache__ directories
-        self.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+        self.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")  # type: ignore[attr-defined]
         self.config_file = self.config["conf_file"]
+        if TYPE_CHECKING:
+            assert self.config_file
         self.config_dir = os.path.dirname(self.config_file)
         self.id = self.config["id"]
         self.config = freeze(self.config)
 
-    def get_display_name(self):
+    def get_display_name(self) -> str:
         """
         Returns a human readable name for the factory.
         """
         if self.display_name is None:
-            self.display_name = "{}(id={!r})".format(self.__class__.__name__, self.id)
+            self.display_name = f"{self.__class__.__name__}(id={self.id!r})"
         if self.display_name is not None:
             return self.display_name
         return super().get_display_name()
@@ -97,7 +116,11 @@ class SaltCliImpl(SubprocessImpl):
     supported keyword arguments documentation.
     """
 
-    def cmdline(self, *args, minion_tgt=None, **kwargs):  # pylint: disable=arguments-differ
+    factory: SaltCli = attr.ib()
+
+    def cmdline(
+        self, *args: str, minion_tgt: Optional[str] = None, **kwargs: Any
+    ) -> List[str]:  # pylint: disable=arguments-differ
         """
         Construct a list of arguments to use when starting the subprocess.
 
@@ -131,29 +154,29 @@ class SaltCli(SaltMixin, ScriptSubprocess):
     arguments documentation.
     """
 
-    hard_crash = attr.ib(repr=False, default=False)
+    hard_crash: bool = attr.ib(repr=False, default=False)
     # Override the following to default to non-mandatory and to None
-    display_name = attr.ib(init=False, default=None)
-    _minion_tgt = attr.ib(repr=False, init=False, default=None)
-    merge_json_output = attr.ib(repr=False, default=True)
+    display_name: str = attr.ib(init=False, default=None)
+    _minion_tgt: Optional[str] = attr.ib(repr=False, init=False, default=None)
+    merge_json_output: bool = attr.ib(repr=False, default=True)
 
-    __cli_timeout_supported__ = attr.ib(repr=False, init=False, default=False)
-    __cli_log_level_supported__ = attr.ib(repr=False, init=False, default=True)
-    __cli_output_supported__ = attr.ib(repr=False, init=False, default=True)
-    __json_output__ = attr.ib(repr=False, init=False, default=False)
-    __merge_json_output__ = attr.ib(repr=False, init=False, default=True)
+    __cli_timeout_supported__: bool = attr.ib(repr=False, init=False, default=False)
+    __cli_log_level_supported__: bool = attr.ib(repr=False, init=False, default=True)
+    __cli_output_supported__: bool = attr.ib(repr=False, init=False, default=True)
+    __json_output__: bool = attr.ib(repr=False, init=False, default=False)
+    __merge_json_output__: bool = attr.ib(repr=False, init=False, default=True)
 
-    def _get_impl_class(self):
+    def _get_impl_class(self) -> Type[SaltCliImpl]:
         return SaltCliImpl
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         """
         Post attrs initialization routines.
         """
         ScriptSubprocess.__attrs_post_init__(self)
         SaltMixin.__attrs_post_init__(self)
 
-    def get_script_args(self):
+    def get_script_args(self) -> List[str]:
         """
         Returns any additional arguments to pass to the CLI script.
         """
@@ -161,15 +184,19 @@ class SaltCli(SaltMixin, ScriptSubprocess):
             return super().get_script_args()
         return ["--hard-crash"]
 
-    def get_minion_tgt(self, minion_tgt=None):
+    def get_minion_tgt(self, minion_tgt: Optional[str] = None) -> Optional[str]:
         """
         Return the minion target ID.
         """
         return minion_tgt
 
     def cmdline(
-        self, *args, minion_tgt=None, merge_json_output=None, **kwargs
-    ):  # pylint: disable=arguments-differ
+        self,
+        *args: str,
+        minion_tgt: Optional[str] = None,
+        merge_json_output: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> List[str]:  # pylint: disable=arguments-differ
         """
         Construct a list of arguments to use when starting the subprocess.
 
@@ -204,7 +231,7 @@ class SaltCli(SaltMixin, ScriptSubprocess):
         cmdline = []
 
         # Convert all passed in arguments to strings
-        args = [str(arg) for arg in args]
+        args = tuple(str(arg) for arg in args)
 
         # Handle the config directory flag
         for arg in args:
@@ -213,7 +240,7 @@ class SaltCli(SaltMixin, ScriptSubprocess):
             if arg in ("-c", "--config-dir"):
                 break
         else:
-            cmdline.append("--config-dir={}".format(self.config_dir))
+            cmdline.append(f"--config-dir={self.config_dir}")
 
         # Handle the timeout CLI flag, if supported
         if self.__cli_timeout_supported__:
@@ -255,16 +282,16 @@ class SaltCli(SaltMixin, ScriptSubprocess):
                     salt_cli_timeout_next = True
                     continue
             else:
-                salt_cli_timeout = self.timeout
+                salt_cli_timeout = self.timeout  # type: ignore[assignment]
                 if salt_cli_timeout and self.impl._terminal_timeout:
                     if self.impl._terminal_timeout > salt_cli_timeout:
-                        salt_cli_timeout = self.impl._terminal_timeout
+                        salt_cli_timeout = self.impl._terminal_timeout  # type: ignore[assignment]
                 if not salt_cli_timeout and self.impl._terminal_timeout:
-                    salt_cli_timeout = self.impl._terminal_timeout
+                    salt_cli_timeout = self.impl._terminal_timeout  # type: ignore[assignment]
                 if salt_cli_timeout:
                     self.impl._terminal_timeout = salt_cli_timeout + SALT_TIMEOUT_FLAG_INCREASE
                     # Add it to the salt command CLI flags
-                    cmdline.append("--timeout={}".format(salt_cli_timeout))
+                    cmdline.append(f"--timeout={salt_cli_timeout}")
 
         # Handle the output flag
         if self.__cli_output_supported__:
@@ -311,7 +338,7 @@ class SaltCli(SaltMixin, ScriptSubprocess):
             value = kwargs[key]
             if not isinstance(value, str):
                 value = json.dumps(value)
-            cmdline.append("{}={}".format(key, value))
+            cmdline.append(f"{key}={value}")
         cmdline = super().cmdline(*cmdline)
         if self.python_executable:
             if cmdline[0] != self.python_executable:
@@ -319,7 +346,9 @@ class SaltCli(SaltMixin, ScriptSubprocess):
         log.debug("Built cmdline: %s", cmdline)
         return cmdline
 
-    def process_output(self, stdout, stderr, cmdline=None):
+    def process_output(
+        self, stdout: str, stderr: str, cmdline: Optional[List[str]] = None
+    ) -> Tuple[str, str, Optional[Dict[Any, Any]]]:
         """
         Process the output. When possible JSON is loaded from the output.
 
@@ -373,10 +402,13 @@ class SystemdSaltDaemonImpl(DaemonImpl):
     arguments documentation.
     """
 
-    _process = attr.ib(init=False, repr=False, default=None)
-    _service_name = attr.ib(init=False, repr=False, default=None)
+    factory: SaltDaemon = attr.ib()
 
-    def cmdline(self, *args):  # pylint: disable=arguments-differ
+    _process: Optional[psutil.Process] = attr.ib(init=False, repr=False, default=None)
+    _service_name: Optional[str] = attr.ib(init=False, repr=False, default=None)
+
+    # pylint: disable=arguments-differ
+    def cmdline(self, *args: str) -> List[str]:  # type: ignore[override]
         """
         Construct a list of arguments to use when starting the subprocess.
 
@@ -389,9 +421,11 @@ class SystemdSaltDaemonImpl(DaemonImpl):
             log.debug(
                 "%s.run() is ignoring the passed in arguments: %r", self.__class__.__name__, args
             )
-        return ("systemctl", "start", self.get_service_name())
+        return ["systemctl", "start", self.get_service_name()]
 
-    def get_service_name(self):
+    # pylint: enable=arguments-differ
+
+    def get_service_name(self) -> str:
         """
         Return the systemd service name.
         """
@@ -402,19 +436,19 @@ class SystemdSaltDaemonImpl(DaemonImpl):
             self._service_name = script_path
         return self._service_name
 
-    def _internal_run(self, *cmdline):
+    def _internal_run(self, *cmdline: str) -> ProcessResult:
         """
         Run the given command synchronously.
         """
         result = Subprocess(
             cwd=self.factory.cwd,
-            environ=self.factory.environ.copy(),
+            environ=cast(EnvironDict, self.factory.environ.copy()),
             system_encoding=self.factory.system_encoding,
         ).run(*cmdline)
         log.info("%s %s", self.factory.__class__.__name__, result)
         return result
 
-    def is_running(self):
+    def is_running(self) -> bool:
         """
         Returns true if the sub-process is alive.
         """
@@ -424,17 +458,25 @@ class SystemdSaltDaemonImpl(DaemonImpl):
             if mainpid == "0":
                 return False
             self._process = psutil.Process(int(mainpid))
-        return self._process.is_running()
+        return cast(bool, self._process.is_running())
 
     @property
-    def pid(self):
+    def pid(self) -> Optional[int]:
         """
         Return the ``pid`` of the running process.
         """
         if self.is_running():
-            return self._process.pid
+            if TYPE_CHECKING:
+                assert self._process
+            return cast(int, self._process.pid)
+        return None
 
-    def start(self, *extra_cli_arguments, max_start_attempts=None, start_timeout=None):
+    def start(
+        self,
+        *extra_cli_arguments: str,
+        max_start_attempts: Optional[int] = None,
+        start_timeout: Optional[Union[int, float]] = None,
+    ) -> bool:
         """
         Start the daemon.
         """
@@ -444,7 +486,7 @@ class SystemdSaltDaemonImpl(DaemonImpl):
         atexit.register(self.terminate)
         return started
 
-    def _terminate(self):
+    def _terminate(self) -> ProcessResult:
         """
         This method actually terminates the started daemon.
         """
@@ -518,7 +560,7 @@ class SystemdSaltDaemonImpl(DaemonImpl):
             self._terminal = None
             self._terminal_stdout = None
             self._terminal_stderr = None
-            self._terminal_timeout = None
+            self._terminal_timeout = None  # type: ignore[assignment]
             self._children = []
 
 
@@ -532,12 +574,12 @@ class SaltDaemon(SaltMixin, Daemon):
     arguments documentation.
     """
 
-    display_name = attr.ib(init=False, default=None)
-    event_listener = attr.ib(repr=False, default=None)
-    factories_manager = attr.ib(repr=False, hash=False, default=None)
-    _started_at = attr.ib(repr=False, default=None)
+    display_name: Optional[str] = attr.ib(init=False, default=None)
+    event_listener: Optional[EventListener] = attr.ib(repr=False, default=None)
+    factories_manager: FactoriesManager = attr.ib(repr=False, hash=False, default=None)
+    _started_at: Optional[float] = attr.ib(repr=False, default=None)
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         """
         Post attrs initialization routines.
         """
@@ -563,7 +605,7 @@ class SaltDaemon(SaltMixin, Daemon):
         # Register start check function
         self.start_check(self._check_start_events)
 
-    def _get_impl_class(self):
+    def _get_impl_class(self) -> Union[Type[SystemdSaltDaemonImpl], Type[DaemonImpl]]:
         if self.system_install:
             return SystemdSaltDaemonImpl
         return super()._get_impl_class()
@@ -571,13 +613,13 @@ class SaltDaemon(SaltMixin, Daemon):
     @classmethod
     def configure(
         cls,
-        factories_manager,
-        daemon_id,
-        root_dir=None,
-        defaults=None,
-        overrides=None,
-        **configure_kwargs
-    ):
+        factories_manager: FactoriesManager,
+        daemon_id: str,
+        root_dir: Optional[pathlib.Path] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        overrides: Optional[Dict[str, Any]] = None,
+        **configure_kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Configure the salt daemon.
         """
@@ -587,22 +629,23 @@ class SaltDaemon(SaltMixin, Daemon):
             root_dir=root_dir,
             defaults=defaults,
             overrides=overrides,
-            **configure_kwargs
+            **configure_kwargs,
         )
 
     @classmethod
     def _configure(
         cls,
-        factories_manager,
-        daemon_id,
-        root_dir=None,
-        defaults=None,
-        overrides=None,
-    ):
+        factories_manager: FactoriesManager,
+        daemon_id: str,
+        root_dir: Optional[pathlib.Path] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        overrides: Optional[Dict[str, Any]] = None,
+        **configure_kwargs: Any,
+    ) -> Dict[str, Any]:
         raise NotImplementedError
 
     @classmethod
-    def verify_config(cls, config):
+    def verify_config(cls, config: Dict[str, Any]) -> None:
         """
         Verify the configuration dictionary.
         """
@@ -614,11 +657,11 @@ class SaltDaemon(SaltMixin, Daemon):
         )
 
     @classmethod
-    def _get_verify_config_entries(cls, config):
+    def _get_verify_config_entries(cls, config: Dict[str, Any]) -> List[str]:
         raise NotImplementedError
 
     @classmethod
-    def write_config(cls, config):
+    def write_config(cls, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Write the configuration to file.
         """
@@ -637,7 +680,7 @@ class SaltDaemon(SaltMixin, Daemon):
         return loaded_config
 
     @classmethod
-    def load_config(cls, config_file, config):
+    def load_config(cls, config_file: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Return the loaded configuration.
 
@@ -646,16 +689,16 @@ class SaltDaemon(SaltMixin, Daemon):
         """
         raise NotImplementedError
 
-    def get_check_events(self):
+    def get_check_events(self) -> Iterator[Tuple[str, str]]:
         """
         Return salt events to check.
 
-        Returns list of tuples in the form of `(master_id, event_tag)` check against to
+        Returns an iterator of tuples in the form of `(master_id, event_tag)` check against to
         ensure the daemon is running.
         """
         raise NotImplementedError
 
-    def cmdline(self, *args):
+    def cmdline(self, *args: str) -> List[str]:
         """
         Construct a list of arguments to use when starting the subprocess.
 
@@ -673,7 +716,7 @@ class SaltDaemon(SaltMixin, Daemon):
             if arg in ("-c", "--config-dir"):
                 break
         else:
-            _args.append("--config-dir={}".format(self.config_dir))
+            _args.append(f"--config-dir={self.config_dir}")
         # Handle the logging flag
         for arg in args:
             if not isinstance(arg, str):
@@ -691,13 +734,13 @@ class SaltDaemon(SaltMixin, Daemon):
                 cmdline.insert(0, self.python_executable)
         return cmdline
 
-    def _set_started_at(self):
+    def _set_started_at(self) -> None:
         """
         Set the ``_started_at`` attribute on the daemon instance.
         """
         self._started_at = time.time()
 
-    def _check_start_events(self, timeout_at):
+    def _check_start_events(self, timeout_at: float) -> bool:
         """
         Check for start events in the Salt event bus to confirm that the daemon is running.
         """
@@ -714,7 +757,7 @@ class SaltDaemon(SaltMixin, Daemon):
         checks_start_time = time.time()
         while time.time() <= timeout_at:
             if not self.is_running():
-                raise FactoryNotStarted("{} is no longer running".format(self))
+                raise FactoryNotStarted(f"{self} is no longer running")
             if not check_events:
                 break
             check_events -= {

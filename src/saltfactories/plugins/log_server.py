@@ -23,6 +23,8 @@ As an example:
             assert record.levelname != "CRITICAL"
         assert "wally" not in caplog.text
 """
+from __future__ import annotations
+
 import logging
 import threading
 
@@ -87,7 +89,7 @@ class LogServer:
         Stop the log server.
         """
         log.info("%s stopping...", self)
-        address = "tcp://{}:{}".format(self.log_host, self.log_port)
+        address = f"tcp://{self.log_host}:{self.log_port}"
         context = zmq.Context()
         sender = context.socket(zmq.PUSH)
         sender.connect(address)
@@ -123,7 +125,7 @@ class LogServer:
         """
         Process the logs returned.
         """
-        address = "tcp://{}:{}".format(self.log_host, self.log_port)
+        address = f"tcp://{self.log_host}:{self.log_port}"
         context = zmq.Context()
         puller = context.socket(zmq.PULL)
         puller.set_hwm(self.socket_hwm)

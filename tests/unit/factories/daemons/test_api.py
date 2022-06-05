@@ -1,10 +1,11 @@
 import pytest
 
 from saltfactories.daemons.api import SaltApi
+from saltfactories.manager import FactoriesManager
 from saltfactories.utils import random_string
 
 
-def test_missing_api_config(salt_factories):
+def test_missing_api_config(salt_factories: FactoriesManager) -> None:
     master = salt_factories.salt_master_daemon(random_string("master-"))
     with pytest.raises(pytest.UsageError) as exc:
         master.salt_api_daemon()
@@ -15,7 +16,7 @@ def test_missing_api_config(salt_factories):
     )
 
 
-def test_configure_raises_exception(salt_factories):
+def test_configure_raises_exception(salt_factories: FactoriesManager) -> None:
     with pytest.raises(pytest.UsageError) as exc:
         SaltApi.configure(salt_factories, "api")
     assert str(exc.value) == (
@@ -24,7 +25,7 @@ def test_configure_raises_exception(salt_factories):
     )
 
 
-def test_load_config_raises_exception():
+def test_load_config_raises_exception() -> None:
     with pytest.raises(pytest.UsageError) as exc:
         SaltApi.load_config("config_file", {})
     assert str(exc.value) == (

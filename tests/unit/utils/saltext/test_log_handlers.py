@@ -1,9 +1,10 @@
 import pytest
+from pytest_subtests import SubTests
 
 from saltfactories.utils.saltext.log_handlers.pytest_log_handler import ZMQHandler
 
 
-def test_zmqhandler_immutable_formatter_attribute(subtests):
+def test_zmqhandler_immutable_formatter_attribute(subtests: SubTests) -> None:
     handler = ZMQHandler()
     formatter = handler.formatter
 

@@ -5,7 +5,7 @@ import pytest
 from saltfactories.daemons.container import Container
 
 
-def test_missing_docker_library():
+def test_missing_docker_library() -> None:
     with mock.patch(
         "saltfactories.daemons.container.HAS_DOCKER",
         new_callable=mock.PropertyMock(return_value=False),
@@ -16,7 +16,7 @@ def test_missing_docker_library():
         assert str(exc.value) == "The docker python library was not found installed"
 
 
-def test_missing_requests_library():
+def test_missing_requests_library() -> None:
     with mock.patch(
         "saltfactories.daemons.container.HAS_DOCKER",
         new_callable=mock.PropertyMock(return_value=True),

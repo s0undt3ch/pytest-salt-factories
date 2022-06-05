@@ -4,6 +4,8 @@ Markers related utilities.
 ..
     PYTEST_DONT_REWRITE
 """
+from __future__ import annotations
+
 import fnmatch
 import logging
 
@@ -34,7 +36,7 @@ def check_required_loader_attributes(loader_instance, loader_attr, required_item
     available_items = list(getattr(loader_instance, loader_attr))
     not_available_items = set()
 
-    name = "__not_available_{items}s__".format(items=loader_attr)
+    name = f"__not_available_{loader_attr}s__"
     if not hasattr(loader_instance, name):
         cached_not_available_items = set()
         setattr(loader_instance, name, cached_not_available_items)
@@ -98,7 +100,7 @@ def evaluate_markers(item):
                 )
             raise pytest.skip.Exception(
                 "Salt modules not available: {}".format(", ".join(not_available_modules)),
-                **exc_kwargs
+                **exc_kwargs,
             )
 
     requires_salt_states_marker = item.get_closest_marker("requires_salt_states")
@@ -128,7 +130,7 @@ def evaluate_markers(item):
             if len(not_available_states) == 1:
                 raise pytest.skip.Exception(
                     "Salt state module '{}' is not available".format(*not_available_states),
-                    **exc_kwargs
+                    **exc_kwargs,
                 )
             raise pytest.skip.Exception(
                 "Salt state modules not available: {}".format(

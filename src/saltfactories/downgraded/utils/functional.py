@@ -7,11 +7,25 @@ import logging
 import operator
 import pathlib
 import shutil
+from typing import Any
+from typing import Callable
+from typing import cast
+from typing import Dict
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import TYPE_CHECKING
+from typing import Union
 import attr
 import salt.loader
 import salt.pillar
 from pytestshellutils.utils import format_callback_to_string
 
+try:
+    from salt.loader.lazy import LazyLoader
+except ImportError:
+    from salt.loader import LazyLoader
 try:
     import salt.features
 
@@ -56,7 +70,7 @@ class Loaders:
                 loaders.reset_state()
     """
 
-    def __init__(self, opts):
+    def __init__(self, opts: Dict[str, Any]) -> None:
         self.opts = opts
         self.context = {}
         self._cachedir = pathlib.Path(opts['cachedir'])
@@ -75,18 +89,18 @@ class Loaders:
         self.modules.saltutil.sync_all()
         self.reload_all()
 
-    def _cleanup_cache(self):
+    def _cleanup_cache(self) -> None:
         shutil.rmtree(str(self._cachedir), ignore_errors=True)
         self._cachedir.mkdir(exist_ok=True, parents=True)
 
-    def reset_state(self):
+    def reset_state(self) -> None:
         """
         Reset the state functions state.
         """
         for func in self._reset_state_funcs:
             func()
 
-    def reload_all(self):
+    def reload_all(self) -> None:
         """
         Reload all loaders.
         """
@@ -106,7 +120,7 @@ class Loaders:
         self.refresh_pillar()
 
     @property
-    def grains(self):
+    def grains(self) -> Dict[str, Any]:
         """
         The grains loaded by the salt loader.
         """
@@ -115,7 +129,7 @@ class Loaders:
         return self._grains
 
     @property
-    def utils(self):
+    def utils(self) -> LazyLoader:
         """
         The utils loaded by the salt loader.
         """
@@ -124,7 +138,7 @@ class Loaders:
         return self._utils
 
     @property
-    def modules(self):
+    def modules(self) -> LazyLoader:
         """
         The execution modules loaded by the salt loader.
         """
@@ -134,7 +148,8 @@ class Loaders:
             )
             if isinstance(_modules.loaded_modules, dict):
                 for func_name in ('single', 'sls', 'template', 'template_str'):
-                    full_func_name = 'state.{}'.format(func_name)
+                    full_func_name = 'state.{0}'.format(func_name)
+                    wrapper_cls = None
                     if func_name == 'single':
                         wrapper_cls = StateResult
                     else:
@@ -152,7 +167,9 @@ class Loaders:
             else:
 
                 class ModulesLoaderDict(_modules.mod_dict_class):
-                    def __setitem__(self, key, value):
+                    def __setitem__(
+                        self, key: str, value: Callable[[Any], Any]
+                    ) -> None:
                         """
                         Intercept method.
 
@@ -165,12 +182,14 @@ class Loaders:
                             'state.template',
                             'state.template_str',
                         ):
+                            wrapper_cls = None
                             if key == 'state.single':
                                 wrapper_cls = StateResult
                             else:
                                 wrapper_cls = MultiStateResult
                             value = StateModuleFuncWrapper(value, wrapper_cls)
-                        return super().__setitem__(key, value)
+                        super().__setitem__(key, value)
+                        return None
 
                 loader_dict = _modules._dict.copy()
                 _modules._dict = ModulesLoaderDict()
@@ -180,7 +199,7 @@ class Loaders:
         return self._modules
 
     @property
-    def serializers(self):
+    def serializers(self) -> LazyLoader:
         """
         The serializers loaded by the salt loader.
         """
@@ -189,7 +208,7 @@ class Loaders:
         return self._serializers
 
     @property
-    def states(self):
+    def states(self) -> LazyLoader:
         """
         The state modules loaded by the salt loader.
         """
@@ -205,7 +224,7 @@ class Loaders:
                 _states._load_all()
                 for module_name in list(_states.loaded_modules):
                     for func_name in list(_states.loaded_modules[module_name]):
-                        full_func_name = '{}.{}'.format(module_name, func_name)
+                        full_func_name = '{0}.{1}'.format(module_name, func_name)
                         replacement_function = StateFunction(
                             self.modules.state.single, full_func_name
                         )
@@ -221,11 +240,18 @@ class Loaders:
             else:
 
                 class StatesLoaderDict(_states.mod_dict_class):
-                    def __init__(self, proxy_func, *args, **kwargs):
+                    def __init__(
+                        self,
+                        proxy_func: Callable[[Any], Any],
+                        *args: Any,
+                        **kwargs: Any
+                    ):
                         super().__init__(*args, **kwargs)
                         self.__proxy_func__ = proxy_func
 
-                    def __setitem__(self, name, func):
+                    def __setitem__(
+                        self, name: str, func: Callable[[Any], Any]
+                    ) -> None:
                         """
                         Intercept method.
 
@@ -237,7 +263,8 @@ class Loaders:
                         modules directly. This was also how the non pytest test suite worked
                         """
                         func = StateFunction(self.__proxy_func__, name)
-                        return super().__setitem__(name, func)
+                        super().__setitem__(name, func)
+                        return None
 
                 loader_dict = _states._dict.copy()
                 _states._dict = StatesLoaderDict(self.modules.state.single)
@@ -247,7 +274,7 @@ class Loaders:
         return self._states
 
     @property
-    def pillar(self):
+    def pillar(self) -> Dict[str, Any]:
         """
         The pillar loaded by the salt loader.
         """
@@ -259,9 +286,9 @@ class Loaders:
                 saltenv=self.opts['saltenv'],
                 pillarenv=self.opts.get('pillarenv'),
             ).compile_pillar()
-        return self._pillar
+        return cast(Dict[str, Any], self._pillar)
 
-    def refresh_pillar(self):
+    def refresh_pillar(self) -> None:
         """
         Refresh the pillar.
         """
@@ -290,17 +317,17 @@ class StateResult:
     filtered = attr.ib(init=False)
 
     @state_id.default
-    def _state_id(self):
+    def _state_id(self) -> str:
         if not isinstance(self.raw, dict):
-            raise ValueError('The state result errored: {}'.format(self.raw))
+            raise ValueError('The state result errored: {0}'.format(self.raw))
         return next(iter(self.raw.keys()))
 
     @full_return.default
-    def _full_return(self):
-        return self.raw[self.state_id]
+    def _full_return(self) -> Dict[str, Any]:
+        return cast(Dict[str, Any], self.raw[self.state_id])
 
     @filtered.default
-    def _filtered_default(self):
+    def _filtered_default(self) -> Dict[str, Any]:
         _filtered = {}
         for key, value in self.full_return.items():
             if key.startswith('_') or key in ('duration', 'start_time'):
@@ -309,69 +336,69 @@ class StateResult:
         return _filtered
 
     @property
-    def run_num(self):
+    def run_num(self) -> int:
         """
         The ``__run_num__`` key on the full state return dictionary.
         """
         return self.full_return['__run_num__'] or 0
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         The ``name`` key on the full state return dictionary.
         """
-        return self.full_return['name']
+        return cast(str, self.full_return['name'])
 
     @property
-    def result(self):
+    def result(self) -> bool:
         """
         The ``result`` key on the full state return dictionary.
         """
-        return self.full_return['result']
+        return cast(bool, self.full_return['result'])
 
     @property
-    def changes(self):
+    def changes(self) -> Dict[str, Any]:
         """
         The ``changes`` key on the full state return dictionary.
         """
-        return self.full_return['changes']
+        return cast(Dict[str, Any], self.full_return['changes'])
 
     @property
-    def comment(self):
+    def comment(self) -> List[str]:
         """
         The ``comment`` key on the full state return dictionary.
         """
-        return self.full_return['comment']
+        return cast(List[str], self.full_return['comment'])
 
     @property
-    def warnings(self):
+    def warnings(self) -> List[str]:
         """
         The ``warnings`` key on the full state return dictionary.
         """
         return self.full_return.get('warnings') or []
 
-    def __contains__(self, key):
+    def __contains__(self, key: str) -> bool:
         """
         Checks for the existence of ``key`` in the full state return dictionary.
         """
         return key in self.full_return
 
-    def __eq__(self, _):
+    def __eq__(self, _: Any) -> bool:
         """
         Override method.
         """
         raise TypeError(
-            'Please assert comparisons with {}.filtered instead'.format(
+            'Please assert comparisons with {0}.filtered instead'.format(
                 self.__class__.__name__
             )
         )
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """
         Override method.
         """
         raise TypeError(
-            'Please assert comparisons with {}.filtered instead'.format(
+            'Please assert comparisons with {0}.filtered instead'.format(
                 self.__class__.__name__
             )
         )
@@ -389,7 +416,7 @@ class StateFunction:
     proxy_func = attr.ib(repr=False)
     state_func = attr.ib()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> StateResult:
         """
         Call the state module function.
         """
@@ -403,7 +430,7 @@ class StateFunction:
 
 
 @attr.s
-class MultiStateResult:
+class MultiStateResult(Iterable[StateResult]):
     """
     Multiple state returns wrapper class.
 
@@ -460,21 +487,23 @@ class MultiStateResult:
     _structured = attr.ib(init=False)
 
     @_structured.default
-    def _set_structured(self):
+    def _set_structured(self) -> List[StateResult]:
         if self.failed:
             return []
+        if TYPE_CHECKING:
+            assert isinstance(self.raw, dict)
         state_result = [
             StateResult({state_id: data}) for state_id, data in self.raw.items()
         ]
         return sorted(state_result, key=operator.attrgetter('run_num'))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[StateResult]:
         """
         Iterate through the state return.
         """
         return iter(self._structured)
 
-    def __contains__(self, key):
+    def __contains__(self, key: str) -> bool:
         """
         Check the presence of ``key`` in the state return.
         """
@@ -483,26 +512,29 @@ class MultiStateResult:
                 return True
         return False
 
-    def __getitem__(self, state_id_or_index):
+    def __getitem__(self, state_id_or_index: Union[int, str]) -> StateResult:
         """
         Get an item from the state return.
         """
         if isinstance(state_id_or_index, int):
             return self._structured[state_id_or_index]
+        state_result = None
         for state_result in self:
             if state_result.state_id == state_id_or_index:
                 return state_result
-        raise KeyError("No state by the ID of '{}' was found".format(state_id_or_index))
+        raise KeyError(
+            "No state by the ID of '{0}' was found".format(state_id_or_index)
+        )
 
     @property
-    def failed(self):
+    def failed(self) -> bool:
         """
         Return ``True`` or ``False`` if the multiple state run was not successful.
         """
         return isinstance(self.raw, list)
 
     @property
-    def errors(self):
+    def errors(self) -> List[str]:
         """
         Return the list of errors in case the multiple state run was not successful.
         """
@@ -528,7 +560,7 @@ class StateModuleFuncWrapper:
     func = attr.ib()
     wrapper = attr.ib()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> StateResult:
         """
         Call the state module function.
         """

@@ -1,13 +1,16 @@
 import shutil
 import sys
+from pathlib import Path
+from typing import Optional
 
 import pytest
+from _pytest.pytester import Pytester
 
 from saltfactories.bases import SaltDaemon
 
 
 @pytest.fixture
-def config_dir(pytester):
+def config_dir(pytester: Pytester) -> Path:
     _conf_dir = pytester.mkdir("conf")
     try:
         yield _conf_dir
@@ -16,12 +19,12 @@ def config_dir(pytester):
 
 
 @pytest.fixture
-def master_id():
+def master_id() -> str:
     return "test-master-id"
 
 
 @pytest.fixture
-def config_file(config_dir, master_id):
+def config_file(config_dir: Path, master_id: str):
     config_file = str(config_dir / "config")
     with open(config_file, "w") as wfh:
         wfh.write("id: {}\n".format(master_id))
@@ -29,7 +32,7 @@ def config_file(config_dir, master_id):
 
 
 @pytest.fixture
-def cli_script_name(pytester):
+def cli_script_name(pytester: Pytester):
     py_file = pytester.makepyfile(
         """
         print("This would be the CLI script")
@@ -41,7 +44,7 @@ def cli_script_name(pytester):
         py_file.unlink()
 
 
-def test_default_cli_flags(config_dir, config_file, cli_script_name):
+def test_default_cli_flags(config_dir: Path, config_file: str, cli_script_name: str) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     expected = [
         sys.executable,
@@ -55,7 +58,9 @@ def test_default_cli_flags(config_dir, config_file, cli_script_name):
 
 
 @pytest.mark.parametrize("flag", ["-l", "--log-level", "--log-level="])
-def test_override_log_level(config_dir, config_file, cli_script_name, flag):
+def test_override_log_level(
+    config_dir: Path, config_file: str, cli_script_name: str, flag: str
+) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     if flag.endswith("="):
         args = [flag + "info"]
@@ -73,7 +78,9 @@ def test_override_log_level(config_dir, config_file, cli_script_name, flag):
 
 
 @pytest.mark.parametrize("flag", ["-c", "--config-dir", "--config-dir=", None])
-def test_override_config_dir(config_dir, config_file, cli_script_name, flag):
+def test_override_config_dir(
+    config_dir: Path, config_file: str, cli_script_name: str, flag: Optional[str]
+) -> None:
     passed_config_dir = "{}.new".format(config_dir)
     if flag is None:
         args = ["--config-dir={}".format(config_dir)]
@@ -89,7 +96,7 @@ def test_override_config_dir(config_dir, config_file, cli_script_name, flag):
     assert cmdline == expected
 
 
-def test_salt_daemon_factory_id_attr_comes_first_in_repr(config_file):
+def test_salt_daemon_factory_id_attr_comes_first_in_repr(config_file: str) -> None:
     proc = SaltDaemon(
         start_timeout=1, script_name="foo-bar", config={"id": "TheID", "conf_file": config_file}
     )
@@ -98,7 +105,7 @@ def test_salt_daemon_factory_id_attr_comes_first_in_repr(config_file):
     assert str(proc).startswith(regex)
 
 
-def test_salt_cli_display_name(config_file):
+def test_salt_cli_display_name(config_file: str) -> None:
     factory_id = "TheID"
     proc = SaltDaemon(
         start_timeout=1,

@@ -11,14 +11,23 @@ import pathlib
 import shutil
 import tempfile
 import textwrap
+from contextlib import _GeneratorContextManager
 from contextlib import contextmanager
+from typing import Dict
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Union
 import attr
 
 log = logging.getLogger(__name__)
 
 
 @contextmanager
-def temp_directory(name=None, basepath=None):
+def temp_directory(
+    name: Optional[Union[pathlib.Path, str]] = None,
+    basepath: Optional[pathlib.Path] = None,
+) -> Iterator[pathlib.Path]:
     """
     This helper creates a temporary directory.
 
@@ -83,7 +92,12 @@ def temp_directory(name=None, basepath=None):
 
 
 @contextmanager
-def temp_file(name=None, contents=None, directory=None, strip_first_newline=True):
+def temp_file(
+    name: Optional[str] = None,
+    contents: Optional[str] = None,
+    directory: Optional[pathlib.Path] = None,
+    strip_first_newline: bool = True,
+) -> Iterator[pathlib.Path]:
     """
     Create a temporary file as a context manager.
 
@@ -177,15 +191,15 @@ def temp_file(name=None, contents=None, directory=None, strip_first_newline=True
 
     """
     if directory is None:
-        directory = tempfile.gettempdir()
+        directory = pathlib.Path(tempfile.gettempdir())
     if not isinstance(directory, pathlib.Path):
         directory = pathlib.Path(str(directory))
     if name is not None:
         file_path = directory / name
     else:
-        handle, file_path = tempfile.mkstemp(dir=str(directory))
+        handle, _file_path = tempfile.mkstemp(dir=str(directory))
         os.close(handle)
-        file_path = pathlib.Path(file_path)
+        file_path = pathlib.Path(_file_path)
     create_directories = file_path.parent.relative_to(directory)
     if create_directories:
         with temp_directory(create_directories, basepath=directory):
@@ -201,7 +215,9 @@ def temp_file(name=None, contents=None, directory=None, strip_first_newline=True
 
 
 @contextmanager
-def _write_or_touch(file_path, contents, strip_first_newline=True):
+def _write_or_touch(
+    file_path: pathlib.Path, contents: Optional[str], strip_first_newline: bool = True
+) -> Iterator[None]:
     try:
         if contents is not None:
             if contents:
@@ -247,7 +263,7 @@ class SaltEnv:
     name = attr.ib()
     paths = attr.ib(default=attr.Factory(list))
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         """
         Post attrs initialization routines.
         """
@@ -258,13 +274,18 @@ class SaltEnv:
             path.mkdir(parents=True, exist_ok=True)
 
     @property
-    def write_path(self):
+    def write_path(self) -> pathlib.Path:
         """
         The path where temporary files are created.
         """
         return self.paths[0]
 
-    def temp_file(self, name, contents=None, strip_first_newline=True):
+    def temp_file(
+        self,
+        name: str,
+        contents: Optional[str] = None,
+        strip_first_newline: bool = True,
+    ) -> _GeneratorContextManager[pathlib.Path]:
         """
         Create a temporary file within this saltenv.
 
@@ -277,7 +298,7 @@ class SaltEnv:
             strip_first_newline=strip_first_newline,
         )
 
-    def as_dict(self):
+    def as_dict(self) -> Dict[str, List[str]]:
         """
         Returns a dictionary of the right types to update the salt configuration.
 
@@ -320,7 +341,7 @@ class SaltEnvs:
 
     envs = attr.ib()
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         """
         Post attrs initialization routines.
         """
@@ -331,7 +352,7 @@ class SaltEnvs:
                 self.envs[envname] = SaltEnv(name=envname, paths=envtree)
             setattr(self, envname, self.envs[envname])
 
-    def as_dict(self):
+    def as_dict(self) -> Dict[str, List[str]]:
         """
         Returns a dictionary of the right types to update the salt configuration.
 

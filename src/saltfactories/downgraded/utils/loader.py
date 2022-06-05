@@ -6,11 +6,19 @@ import logging
 import sys
 import types
 from collections import deque
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Tuple
 from unittest.mock import patch
 import attr
 import pytest
 from pytestshellutils.utils import format_callback_to_string
 
+try:
+    from typing import Deque
+except ImportError:
+    from typing_extensions import Deque
 log = logging.getLogger(__name__)
 
 
@@ -62,7 +70,7 @@ class LoaderModuleMock:
         init=False, repr=False, hash=False, default=attr.Factory(deque)
     )
 
-    def start(self):
+    def start(self) -> None:
         """
         Start mocks.
         """
@@ -90,7 +98,7 @@ class LoaderModuleMock:
             self._patch_sys_modules(globals_to_mock)
             self._patch_module_globals(module, globals_to_mock, module_globals.copy())
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop mocks.
         """
@@ -105,25 +113,32 @@ class LoaderModuleMock:
                     'Failed to run finalizer %s: %s', func_repr, exc, exc_info=True
                 )
 
-    def addfinalizer(self, func, *args, **kwargs):
+    def addfinalizer(
+        self, func: Callable[..., None], *args: Any, **kwargs: Any
+    ) -> None:
         """
         Register a function to run when stopping.
         """
         self._finalizers.append((func, args, kwargs))
 
-    def _patch_sys_modules(self, mocks):
+    def _patch_sys_modules(self, mocks: Dict[str, Any]) -> None:
         if 'sys.modules' not in mocks:
             return
         sys_modules = mocks['sys.modules']
         if not isinstance(sys_modules, dict):
             raise pytest.UsageError(
-                "'sys.modules' must be a dictionary not: {}".format(type(sys_modules))
+                "'sys.modules' must be a dictionary not: {0}".format(type(sys_modules))
             )
         patcher = patch.dict(sys.modules, values=sys_modules)
         patcher.start()
         self.addfinalizer(patcher.stop)
 
-    def _patch_module_globals(self, module, mocks, module_globals):
+    def _patch_module_globals(
+        self,
+        module: types.ModuleType,
+        mocks: Dict[str, Any],
+        module_globals: Dict[str, Any],
+    ) -> None:
         salt_dunder_dicts = self.salt_module_dunders + self.salt_module_dunders_optional
         allowed_salt_dunders = salt_dunder_dicts + self.salt_module_dunder_attributes
         for key in mocks:
@@ -154,14 +169,14 @@ class LoaderModuleMock:
         patcher.start()
         self.addfinalizer(patcher.stop)
 
-    def __enter__(self):
+    def __enter__(self) -> 'LoaderModuleMock':
         """
         Use the mock class as a context manager.
         """
         self.start()
         return self
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: Any) -> None:
         """
         Exit context manager.
         """

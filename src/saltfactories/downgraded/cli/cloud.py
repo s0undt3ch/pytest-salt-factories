@@ -46,7 +46,7 @@ class SaltCloud(SaltCli):
             'log_level_logfile': 'debug',
             'pytest-cloud': {
                 'master-id': master_id,
-                'log': {'prefix': '{{cli_name}}({})'.format(master_id)},
+                'log': {'prefix': '{cli_name}({0})'.format(master_id)},
             },
         }
         salt.utils.dictupdate.update(defaults, _defaults, merge_lists=True)

@@ -11,7 +11,14 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from pathlib import Path
+from typing import Any
+from typing import cast
+from typing import Dict
+from typing import List
+from typing import Optional
 import attr
+from pytestshellutils.customtypes import EnvironDict
 from pytestshellutils.exceptions import ProcessFailed
 from pytestshellutils.utils.processes import ProcessResult
 from pytestskipmarkers.utils import platform
@@ -25,23 +32,24 @@ class VirtualEnv:
     """
     Helper class to create and use a virtual environment.
 
-    :keyword str,~pathlib.Path venv_dir:
-        The path to the directory where the virtual environment should be created
-    :keyword list venv_create_args:
-        Additional list of strings to pass when creating the virtualenv
-    :keyword dict env:
-        Additional environment entries
-    :keyword str,~pathlib.Path cwd:
-        The default ``cwd`` to use. Can be overridden when calling
-        :py:func:`~saltfactories.utils.virtualenv.VirtualEnv.run` and
-        :py:func:`~saltfactories.utils.virtualenv.VirtualEnv.install`
+    Keyword Arguments:
+        venv_dir:
+            The path to the directory where the virtual environment should be created
+        venv_create_args:
+            Additional list of strings to pass when creating the virtualenv
+        env:
+            Additional environment entries
+        cwd:
+            The default ``cwd`` to use. Can be overridden when calling
+            :py:func:`~saltfactories.utils.virtualenv.VirtualEnv.run` and
+            :py:func:`~saltfactories.utils.virtualenv.VirtualEnv.install`
 
-    .. code-block:: python
+        .. code-block:: python
 
-        with VirtualEnv("/tmp/venv") as venv:
-            venv.install("pep8")
+            with VirtualEnv("/tmp/venv") as venv:
+                venv.install("pep8")
 
-            assert "pep8" in venv.get_installed_packages()
+                assert "pep8" in venv.get_installed_packages()
     """
 
     venv_dir = attr.ib(converter=cast_to_pathlib_path)
@@ -53,27 +61,27 @@ class VirtualEnv:
     venv_bin_dir = attr.ib(init=False, repr=False)
 
     @venv_dir.default
-    def _default_venv_dir(self):
+    def _default_venv_dir(self) -> pathlib.Path:
         return pathlib.Path(tempfile.mkdtemp(dir=tempfile.gettempdir()))
 
     @environ.default
-    def _default_environ(self):
-        environ = os.environ.copy()
+    def _default_environ(self) -> EnvironDict:
+        environ = cast(EnvironDict, os.environ.copy())
         if self.env:
             environ.update(self.env)
         return environ
 
     @venv_python.default
-    def _default_venv_python(self):
+    def _default_venv_python(self) -> str:
         if platform.is_windows():
             return str(self.venv_dir / 'Scripts' / 'python.exe')
         return str(self.venv_dir / 'bin' / 'python')
 
     @venv_bin_dir.default
-    def _default_venv_bin_dir(self):
+    def _default_venv_bin_dir(self) -> pathlib.Path:
         return pathlib.Path(self.venv_python).parent
 
-    def __enter__(self):
+    def __enter__(self) -> 'VirtualEnv':
         """
         Use as a context manager.
         """
@@ -83,23 +91,21 @@ class VirtualEnv:
             raise AssertionError('Failed to create virtualenv') from exc
         return self
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: Any) -> None:
         """
         Exit the context manager.
         """
         shutil.rmtree(str(self.venv_dir), ignore_errors=True)
 
-    def install(self, *args, **kwargs):
+    def install(self, *args: str, **kwargs: Any) -> ProcessResult:
         """
         Install a python package into the virtualenv.
         """
         return self.run(self.venv_python, '-m', 'pip', 'install', *args, **kwargs)
 
-    def run(self, *args, **kwargs):
+    def run(self, *args: str, **kwargs: Any) -> ProcessResult:
         """
         Run a shell command.
-
-        :rtype: ~pytestshellutils.utils.processes.ProcessResult
         """
         check = kwargs.pop('check', True)
         kwargs.setdefault('cwd', str(self.cwd or self.venv_dir))
@@ -125,7 +131,7 @@ class VirtualEnv:
         return ret
 
     @staticmethod
-    def get_real_python():
+    def get_real_python() -> str:
         """
         Return the path to the real python executable.
 
@@ -160,13 +166,16 @@ class VirtualEnv:
         except AttributeError:
             return sys.executable
 
-    def run_code(self, code_string, **kwargs):
+    def run_code(self, code_string: str, **kwargs: Any) -> ProcessResult:
         """
         Run python code using the virtualenv python environment.
 
-        :param str code_string:
+        Arguments:
+            code_string:
+                The code string to run against the virtualenv python interpreter
 
-            The code string to run against the virtualenv python interpreter
+        Returns:
+            ProcessResult: A ``ProcessResult`` instance for the executed code run.
         """
         if code_string.startswith('\n'):
             code_string = code_string[1:]
@@ -176,7 +185,7 @@ class VirtualEnv:
         )
         return self.run(str(self.venv_python), '-c', code_string, **kwargs)
 
-    def get_installed_packages(self):
+    def get_installed_packages(self) -> Dict[str, str]:
         """
         Return installed packages in the virtualenv.
 
@@ -189,7 +198,7 @@ class VirtualEnv:
             data[pkginfo['name']] = pkginfo['version']
         return data
 
-    def _create_virtualenv(self):
+    def _create_virtualenv(self) -> None:
         args = [self.get_real_python(), '-m', 'virtualenv']
         passed_python = False
         for arg in self.venv_create_args:
@@ -197,7 +206,7 @@ class VirtualEnv:
                 passed_python = True
             args.append(arg)
         if passed_python is False:
-            args.append('--python={}'.format(self.get_real_python()))
+            args.append('--python={0}'.format(self.get_real_python()))
         args.append(str(self.venv_dir))
         self.run(*args, cwd=os.getcwd())
         self.install('-U', 'pip', 'setuptools!=50.*,!=51.*,!=52.*')

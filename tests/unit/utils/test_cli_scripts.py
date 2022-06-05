@@ -6,11 +6,12 @@ import pathlib
 import textwrap
 
 import pytest
+from py._path.local import LocalPath
 
 import saltfactories.utils.cli_scripts as cli_scripts
 
 
-def test_generate_script_defaults(tmpdir):
+def test_generate_script_defaults(tmpdir: LocalPath) -> None:
     """
     Test defaults script generation
     """
@@ -69,7 +70,7 @@ def test_generate_script_defaults(tmpdir):
     assert contents == expected
 
 
-def test_generate_script_code_dir(tmpdir):
+def test_generate_script_code_dir(tmpdir: LocalPath) -> None:
     """
     Test code_dir inclusion in script generation
     """
@@ -136,7 +137,7 @@ def test_generate_script_code_dir(tmpdir):
     assert contents == expected
 
 
-def test_generate_script_inject_coverage(tmpdir):
+def test_generate_script_inject_coverage(tmpdir: LocalPath) -> None:
     """
     Test coverage related code included in script generation
     """
@@ -215,7 +216,7 @@ def test_generate_script_inject_coverage(tmpdir):
     assert contents == expected
 
 
-def test_generate_script_inject_sitecustomize(tmpdir):
+def test_generate_script_inject_sitecustomize(tmpdir: LocalPath) -> None:
     """
     Test sitecustomize injection related code included in script generation
     """
@@ -385,7 +386,7 @@ def test_generate_script_inject_sitecustomize(tmpdir):
     assert contents == expected
 
 
-def test_generate_script_salt(tmpdir):
+def test_generate_script_salt(tmpdir: LocalPath) -> None:
     """
     Test script generation for the salt CLI script
     """
@@ -435,7 +436,7 @@ def test_generate_script_salt(tmpdir):
     assert contents == expected
 
 
-def test_generate_script_salt_api(tmpdir):
+def test_generate_script_salt_api(tmpdir: LocalPath) -> None:
     """
     Test script generation for the salt-api CLI script
     """
@@ -492,7 +493,7 @@ def test_generate_script_salt_api(tmpdir):
     assert contents == expected
 
 
-def test_generate_script_creates_missing_bin_dir(tmpdir):
+def test_generate_script_creates_missing_bin_dir(tmpdir: LocalPath) -> None:
     """
     Test defaults script generation
     """
@@ -552,7 +553,7 @@ def test_generate_script_creates_missing_bin_dir(tmpdir):
     assert os.path.isdir(tmpdir.join("blah").strpath)
 
 
-def test_generate_script_only_generates_once(tmpdir):
+def test_generate_script_only_generates_once(tmpdir: LocalPath) -> None:
     """
     Test defaults script generation
     """

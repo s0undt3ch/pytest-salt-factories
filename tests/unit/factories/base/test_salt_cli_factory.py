@@ -3,9 +3,12 @@ import os
 import shutil
 import sys
 from collections import OrderedDict
+from pathlib import Path
+from typing import Optional
 from unittest import mock
 
 import pytest
+from _pytest.pytester import Pytester
 from pytestshellutils.utils.processes import ProcessResult
 
 from saltfactories.bases import SALT_TIMEOUT_FLAG_INCREASE
@@ -13,7 +16,7 @@ from saltfactories.bases import SaltCli
 
 
 @pytest.fixture
-def config_dir(pytester):
+def config_dir(pytester: Pytester) -> Path:
     _conf_dir = pytester.mkdir("conf")
     try:
         yield _conf_dir
@@ -22,12 +25,12 @@ def config_dir(pytester):
 
 
 @pytest.fixture
-def minion_id():
+def minion_id() -> str:
     return "test-minion-id"
 
 
 @pytest.fixture
-def config_file(config_dir, minion_id):
+def config_file(config_dir: Path, minion_id: str) -> str:
     config_file = str(config_dir / "config")
     with open(config_file, "w") as wfh:
         wfh.write("id: {}\n".format(minion_id))
@@ -35,7 +38,7 @@ def config_file(config_dir, minion_id):
 
 
 @pytest.fixture
-def cli_script_name(pytester):
+def cli_script_name(pytester: Pytester) -> str:
     py_file = pytester.makepyfile(
         """
         print("This would be the CLI script")
@@ -47,7 +50,9 @@ def cli_script_name(pytester):
         py_file.unlink()
 
 
-def test_default_cli_flags(minion_id, config_dir, config_file, cli_script_name):
+def test_default_cli_flags(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     args = ["test.ping"]
     kwargs = {"minion_tgt": minion_id}
@@ -67,7 +72,9 @@ def test_default_cli_flags(minion_id, config_dir, config_file, cli_script_name):
 
 
 @pytest.mark.parametrize("flag", ["-l", "--log-level", "--log-level="])
-def test_override_log_level(minion_id, config_dir, config_file, cli_script_name, flag):
+def test_override_log_level(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str, flag: str
+) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     args = []
     if flag.endswith("="):
@@ -96,7 +103,9 @@ def test_override_log_level(minion_id, config_dir, config_file, cli_script_name,
 
 
 @pytest.mark.parametrize("flag", ["--out", "--output", "--out=", "--output="])
-def test_override_output(minion_id, config_dir, config_file, cli_script_name, flag):
+def test_override_output(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str, flag: str
+) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     args = []
     if flag.endswith("="):
@@ -126,7 +135,9 @@ def test_override_output(minion_id, config_dir, config_file, cli_script_name, fl
 @pytest.mark.parametrize(
     "flag", ["--out-indent", "--output-indent", "--out-indent=", "--output-indent="]
 )
-def test_override_output_indent(minion_id, config_dir, config_file, cli_script_name, flag):
+def test_override_output_indent(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str, flag: str
+) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     args = []
     if flag.endswith("="):
@@ -154,7 +165,9 @@ def test_override_output_indent(minion_id, config_dir, config_file, cli_script_n
     assert cmdline == expected
 
 
-def test_cli_timeout_lesser_than_timeout_kw(minion_id, config_dir, config_file, cli_script_name):
+def test_cli_timeout_lesser_than_timeout_kw(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     # Both --timeout and _timeout are passed.
     # Since --timeout is less than _timeout, the value of _timeout does not changed
     timeout = 10
@@ -197,7 +210,9 @@ def test_cli_timeout_lesser_than_timeout_kw(minion_id, config_dir, config_file, 
         assert popen_mock.call_args[0][0] == expected  # pylint: disable=unsubscriptable-object
 
 
-def test_cli_timeout_matches_timeout_kw(minion_id, config_dir, config_file, cli_script_name):
+def test_cli_timeout_matches_timeout_kw(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     # Both --timeout and _timeout are passed.
     # Since --timeout is greater than _timeout, the value of _timeout is updated to the value of --timeout plus 5
     timeout = 10
@@ -240,7 +255,9 @@ def test_cli_timeout_matches_timeout_kw(minion_id, config_dir, config_file, cli_
         assert popen_mock.call_args[0][0] == expected  # pylint: disable=unsubscriptable-object
 
 
-def test_cli_timeout_greater_than_timeout_kw(minion_id, config_dir, config_file, cli_script_name):
+def test_cli_timeout_greater_than_timeout_kw(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     # Both --timeout and _timeout are passed.
     # Since --timeout is greater than _timeout, the value of _timeout is updated to the value of --timeout plus 5
     timeout = 10
@@ -284,8 +301,8 @@ def test_cli_timeout_greater_than_timeout_kw(minion_id, config_dir, config_file,
 
 
 def test_cli_timeout_updates_to_timeout_kw_plus_default_increase(
-    minion_id, config_dir, config_file, cli_script_name
-):
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     # _timeout is passed, the value of --timeout is _timeout, internal timeout is added 10 seconds
     timeout = 10
     explicit_timeout = 60
@@ -326,8 +343,8 @@ def test_cli_timeout_updates_to_timeout_kw_plus_default_increase(
 
 
 def test_cli_timeout_updates_to_default_timeout_plus_default_increase(
-    minion_id, config_dir, config_file, cli_script_name
-):
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     # Neither _timeout nor --timeout are passed, --timeout equals the default timeout, internal timeout is added 10
     timeout = 10
     config = {"conf_file": config_file, "id": "the-id"}
@@ -367,7 +384,9 @@ def test_cli_timeout_updates_to_default_timeout_plus_default_increase(
 
 
 @pytest.mark.parametrize("flag", ["-t", "--timeout", "--timeout="])
-def test_override_timeout(minion_id, config_dir, config_file, cli_script_name, flag):
+def test_override_timeout(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str, flag: str
+) -> None:
     flag_value = 15
     if flag.endswith("="):
         flag_overrides_args = [flag + str(flag_value)]
@@ -406,7 +425,9 @@ def test_override_timeout(minion_id, config_dir, config_file, cli_script_name, f
 
 
 @pytest.mark.parametrize("flag", ["-t", "--timeout", "--timeout="])
-def test_override_timeout_bad_value(minion_id, config_dir, config_file, cli_script_name, flag):
+def test_override_timeout_bad_value(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str, flag: str
+) -> None:
     flag_value = 15
     if flag.endswith("="):
         flag_overrides_args = [flag + str(flag_value) + "i"]
@@ -445,7 +466,13 @@ def test_override_timeout_bad_value(minion_id, config_dir, config_file, cli_scri
 
 
 @pytest.mark.parametrize("flag", ["-c", "--config-dir", "--config-dir=", None])
-def test_override_config_dir(minion_id, config_dir, config_file, cli_script_name, flag):
+def test_override_config_dir(
+    minion_id: str,
+    config_dir: Path,
+    config_file: str,
+    cli_script_name: str,
+    flag: Optional[str],
+) -> None:
     passed_config_dir = "{}.new".format(config_dir)
     if flag is None:
         flag_overrides_args = ["--config-dir={}".format(config_dir)]
@@ -474,7 +501,7 @@ def test_override_config_dir(minion_id, config_dir, config_file, cli_script_name
     assert cmdline == expected
 
 
-def test_process_output(cli_script_name, config_file):
+def test_process_output(cli_script_name: str, config_file: str) -> None:
     in_stdout = '"The salt master could not be contacted. Is master running?"\n'
     in_stderr = ""
     cmdline = ["--out=json"]
@@ -488,7 +515,9 @@ def test_process_output(cli_script_name, config_file):
     assert json_out is None
 
 
-def test_non_string_cli_flags(minion_id, config_dir, config_file, cli_script_name):
+def test_non_string_cli_flags(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     args = ["test.ping"]
     foo = ["the", "foo", "list"]
@@ -509,7 +538,9 @@ def test_non_string_cli_flags(minion_id, config_dir, config_file, cli_script_nam
     assert cmdline == expected
 
 
-def test_jsonify_kwargs(minion_id, config_dir, config_file, cli_script_name):
+def test_jsonify_kwargs(
+    minion_id: str, config_dir: Path, config_file: str, cli_script_name: str
+) -> None:
     config = {"conf_file": config_file, "id": "the-id"}
     args = ["test.ping"]
     # Strings
@@ -601,14 +632,14 @@ def test_jsonify_kwargs(minion_id, config_dir, config_file, cli_script_name):
     assert sorted(cmdline) == sorted(expected)
 
 
-def test_salt_cli_factory_id_attr_comes_first_in_repr(config_file):
+def test_salt_cli_factory_id_attr_comes_first_in_repr(config_file: str) -> None:
     proc = SaltCli(script_name="foo-bar", config={"id": "TheID", "conf_file": config_file})
     regex = r"{}(id='TheID'".format(proc.__class__.__name__)
     assert repr(proc).startswith(regex)
     assert str(proc).startswith(regex)
 
 
-def test_salt_cli_display_name(config_file):
+def test_salt_cli_display_name(config_file: str) -> None:
     factory_id = "TheID"
     proc = SaltCli(script_name="foo-bar", config={"id": factory_id, "conf_file": config_file})
     assert proc.get_display_name() == "{}(id={!r})".format(SaltCli.__name__, factory_id)
