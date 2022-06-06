@@ -26,23 +26,24 @@ class VirtualEnv:
     """
     Helper class to create and use a virtual environment.
 
-    :keyword str,~pathlib.Path venv_dir:
-        The path to the directory where the virtual environment should be created
-    :keyword list venv_create_args:
-        Additional list of strings to pass when creating the virtualenv
-    :keyword dict env:
-        Additional environment entries
-    :keyword str,~pathlib.Path cwd:
-        The default ``cwd`` to use. Can be overridden when calling
-        :py:func:`~saltfactories.utils.virtualenv.VirtualEnv.run` and
-        :py:func:`~saltfactories.utils.virtualenv.VirtualEnv.install`
+    Keyword Arguments:
+        venv_dir:
+            The path to the directory where the virtual environment should be created
+        venv_create_args:
+            Additional list of strings to pass when creating the virtualenv
+        env:
+            Additional environment entries
+        cwd:
+            The default ``cwd`` to use. Can be overridden when calling
+            :py:func:`~saltfactories.utils.virtualenv.VirtualEnv.run` and
+            :py:func:`~saltfactories.utils.virtualenv.VirtualEnv.install`
 
-    .. code-block:: python
+        .. code-block:: python
 
-        with VirtualEnv("/tmp/venv") as venv:
-            venv.install("pep8")
+            with VirtualEnv("/tmp/venv") as venv:
+                venv.install("pep8")
 
-            assert "pep8" in venv.get_installed_packages()
+                assert "pep8" in venv.get_installed_packages()
     """
 
     venv_dir = attr.ib(converter=cast_to_pathlib_path)
@@ -100,8 +101,6 @@ class VirtualEnv:
     def run(self, *args, **kwargs):
         """
         Run a shell command.
-
-        :rtype: ~pytestshellutils.utils.processes.ProcessResult
         """
         check = kwargs.pop("check", True)
         kwargs.setdefault("cwd", str(self.cwd or self.venv_dir))
@@ -137,9 +136,10 @@ class VirtualEnv:
         Also, on windows, we must also point to the virtualenv binary outside the existing
         virtualenv because it will fail otherwise
         """
+        # sys.real_prefix is set by virtualenv
         try:
             if platform.is_windows():
-                return os.path.join(sys.real_prefix, os.path.basename(sys.executable))
+                return os.path.join(sys.real_prefix, os.path.basename(sys.executable))  # type: ignore[attr-defined]
             else:
                 python_binary_names = [
                     "python{}.{}".format(*sys.version_info),
@@ -147,13 +147,13 @@ class VirtualEnv:
                     "python",
                 ]
                 for binary_name in python_binary_names:
-                    python = os.path.join(sys.real_prefix, "bin", binary_name)
+                    python = os.path.join(sys.real_prefix, "bin", binary_name)  # type: ignore[attr-defined]
                     if os.path.exists(python):
                         break
                 else:
                     raise AssertionError(
                         "Couldn't find a python binary name under '{}' matching: {}".format(
-                            os.path.join(sys.real_prefix, "bin"), python_binary_names
+                            os.path.join(sys.real_prefix, "bin"), python_binary_names  # type: ignore[attr-defined]
                         )
                     )
                 return python
@@ -164,9 +164,12 @@ class VirtualEnv:
         """
         Run python code using the virtualenv python environment.
 
-        :param str code_string:
+        Arguments:
+            code_string:
+                The code string to run against the virtualenv python interpreter
 
-            The code string to run against the virtualenv python interpreter
+        Returns:
+            ProcessResult: A ``ProcessResult`` instance for the executed code run.
         """
         if code_string.startswith("\n"):
             code_string = code_string[1:]
