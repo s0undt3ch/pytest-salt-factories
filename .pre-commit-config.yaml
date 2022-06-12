@@ -47,6 +47,17 @@ repos:
           --py3-plus,
           --application-directories=.:src:examples/echo-extension/src
         ]
+        files: ^(noxfile\.py)$
+
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: v3.1.0
+    hooks:
+      - id: reorder-python-imports
+        args: [
+          --py3-plus,
+          --add-import=from __future__ import annotations,
+          --application-directories=.:src:examples/echo-extension/src
+        ]
         exclude: ^(src/saltfactories/(version|downgraded/.*)\.py)$
 
   - repo: https://github.com/psf/black
