@@ -27,7 +27,7 @@ jobs:
 
   Docs:
     runs-on: ubuntu-20.04
-    needs: Pre-Commit
+    #needs: Pre-Commit
 
     timeout-minutes: 10
 
@@ -64,7 +64,7 @@ jobs:
 
   PyLint:
     runs-on: ubuntu-latest
-    needs: Pre-Commit
+    #needs: Pre-Commit
 
     timeout-minutes: 10
 
@@ -94,7 +94,7 @@ jobs:
 
   Linux-System-Install:
     runs-on: ubuntu-20.04
-    needs: Pre-Commit
+    #needs: Pre-Commit
 
     timeout-minutes: 25
 
@@ -254,7 +254,7 @@ jobs:
 
   Windows:
     runs-on: windows-latest
-    needs: Pre-Commit
+    #needs: Pre-Commit
 
     timeout-minutes: 40
 
@@ -424,7 +424,7 @@ jobs:
 
   macOS:
     runs-on: macOS-latest
-    needs: Pre-Commit
+    #needs: Pre-Commit
 
     timeout-minutes: 60
 
@@ -586,7 +586,7 @@ jobs:
 
   Linux:
     runs-on: ubuntu-20.04
-    needs: Pre-Commit
+    #needs: Pre-Commit
 
     timeout-minutes: 25
 
